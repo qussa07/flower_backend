@@ -1,0 +1,402 @@
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.exc import IntegrityError
+from app.orders.models import OrderItems
+from ..user.models import User
+from fastapi import HTTPException, UploadFile
+from .schemas import ProductModels, ProductUpdate
+from .models import Product, CompoundProduct
+from pathlib import Path
+from uuid import UUID
+from .storage import (
+    commit_tmp,
+    save_tmp,
+    ALLOWED_TYPES,
+    MAX_SIZE,
+    MAX_FILES,
+    PRODUCT_DIR,
+    photo_path,
+    rollback_photos,
+    remove_empty_product_dir,
+)
+from sqlalchemy import String, cast, or_
+from app.categories.models import Categories
+import shutil
+import utils
+from uuid import UUID, uuid4
+import logging
+from sqlalchemy import exists, func, or_
+
+MAX_TOKENS = 8
+
+
+class ProductService():
+    def __init__(self, db: Session):
+        self.db = db
+
+    def create_product(self, form: ProductModels):
+        if form.category_id is not None:
+            category = self.db.get(Categories, form.category_id)
+            if category is None:
+                raise HTTPException(404, "Категория не найдена")
+
+        product = Product(
+            category_id=form.category_id,
+            title=form.title,
+            price=form.price,
+            description=form.description,
+            count=form.count,
+            is_show=form.is_show,
+            is_show_case=form.is_show_case,
+            image_paths=[],
+            compounds=[
+                CompoundProduct(
+                    title=item.title,
+                    quantity=item.quantity,
+                )
+                for item in form.compounds
+            ],
+        )
+
+        photo_paths = []
+
+        try:
+            self.db.add(product)
+            self.db.flush()
+
+            # После flush у товара уже есть ID.
+            if form.image_paths:
+                try:
+                    photo_paths = commit_tmp(
+                        form.image_paths,
+                        product_id=product.id,
+                    )
+                except FileNotFoundError:
+                    raise HTTPException(
+                        400,
+                        "Фото не найдено. Загрузите его повторно",
+                    ) from None
+
+            product.image_paths = photo_paths
+            self.db.commit()
+
+        except Exception:
+            self.db.rollback()
+            rollback_photos(photo_paths)
+            raise
+
+        self.db.refresh(product)
+
+        return {"id": product.id, "photos": photo_paths,}
+
+    def get_product(self, id: UUID, public_only: bool = False):
+        query = (
+            self.db.query(Product)
+            .options(selectinload(Product.compounds))
+            .filter(Product.id == id)
+        )
+
+        query = self._public_filter(query, public_only)
+        product = query.first()
+
+        if product is None:
+            raise HTTPException(404, "Product not found")
+
+        return product
+
+    def _price_filter(self, query, min_price, max_price):
+        if min_price is not None and max_price is not None and min_price > max_price:
+            raise HTTPException(422, "min_price must not exceed max_price")
+        if min_price is not None:
+            query = query.filter(Product.price >= min_price)
+        if max_price is not None:
+            query = query.filter(Product.price <= max_price)
+        return query
+
+    def _sort_products(self, query, sort):
+        ordering = {
+            "new": Product.created_at.desc(),
+            "old": Product.created_at.asc(),
+            "cheap": Product.price.asc(),
+            "expensive": Product.price.desc(),
+            "asc": Product.title.asc(),
+            "desc": Product.title.desc(),
+            "price_asc": Product.price.asc(),
+            "price_desc": Product.price.desc(),
+        }
+        return query.order_by(ordering[sort], Product.id)
+
+    def get_products(self, page: int, perPage: int, search=None, 
+                     min_price=None, max_price=None, category_id: UUID | None = None, sort=None, 
+                     is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+        offset = (page - 1) * perPage
+        tokens = (search or "").split()[:MAX_TOKENS]
+        if tokens:
+            result = self._run(tokens=tokens, fuzzy=False, limit=perPage, offset=offset, min_price=min_price, max_price=max_price, sort=sort, category_id=category_id, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
+            return result
+        query = self._price_filter( 
+        self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
+        query = self._public_filter(query, public_only)
+        if is_ready:
+            query = query.filter(Product.is_show_case.is_(is_ready))
+
+        if is_not_show:
+            query = query.filter(Product.is_show.is_(False))
+        if category_id is not None:
+            query = query.filter(Product.category_id == category_id)
+        if sort:
+            query = self._sort_products(query, sort)
+        else:
+            query = query.order_by(Product.created_at.desc(), Product.id)
+        return query.offset(offset).limit(perPage).all()
+
+    def upload_file(self, photos: list[UploadFile],  redis: Session):
+        if len(photos) > MAX_FILES:
+            raise HTTPException(400, f"No more than {MAX_FILES} files")
+
+        contents = []
+        for photo in photos:
+            content = photo.file.read(MAX_SIZE + 1)
+
+            if len(content) > MAX_SIZE:
+                raise HTTPException(
+                    413, f"{photo.filename}: файл больше 5 МБ"
+                )
+
+            actual_type = utils.validate_image(content, photo.filename or "Фото")
+            contents.append((content, actual_type))
+
+        ids = []
+        for c, t in contents:
+            id = save_tmp(c, t)
+            ids.append(id)
+        return {"upload_ids": ids}
+
+    def _delete_unused_image(self, image_url: str) -> None:
+        try:
+            path = photo_path(image_url)
+        except ValueError:
+            return
+
+        used_by_product = self.db.query(Product.id).filter(
+            Product.image_paths.contains([image_url])
+        ).first()
+
+        used_by_category = self.db.query(Categories.id).filter(
+            Categories.image_url == image_url
+        ).first()
+
+        if used_by_product or used_by_category:
+            return
+
+        try:
+            path.unlink(missing_ok=True)
+            remove_empty_product_dir(path.parent)
+        except OSError:
+            logging.getLogger(__name__).exception(
+                "Could not delete unused photo: %s",
+                path,
+            )
+
+    def _token_condition(self, token: str, fuzzy: bool):
+        """Слово должно найтись где-то: в букете или в его составе."""
+        if fuzzy:
+            # триграммы: опечатки и часть слова
+            in_product = Product.title.op("%")(token)
+            in_compound = exists().where(
+                CompoundProduct.product_id == Product.id,
+                CompoundProduct.title.op("%")(token),
+            )
+        else:
+            # полнотекстовый поиск с морфологией (роза = розы = роз)
+            tsq = func.plainto_tsquery("russian", token)
+            in_product = Product.search.op("@@")(tsq)
+            in_compound = exists().where(
+                CompoundProduct.product_id == Product.id,
+                CompoundProduct.search.op("@@")(tsq),
+            )
+
+        conds = [in_product, in_compound]
+
+        # число может быть количеством компонента (сравниваем точно)
+        if token.isdigit() and len(token) <= 6:
+            conds.append(
+                exists().where(
+                    CompoundProduct.product_id == Product.id,
+                    CompoundProduct.quantity == int(token),
+                )
+            )
+        return or_(*conds)
+
+    def _run(self, tokens, fuzzy, limit, offset, min_price=None, max_price=None, category_id=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+        query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
+        query = self._public_filter(query, public_only)
+        
+
+        if is_ready == True:
+            query = query.filter(Product.is_show_case.is_(is_ready))
+
+        if is_not_show == True:
+            query = query.filter(Product.is_show.is_(False)) 
+
+        if category_id is not None:
+            query = query.filter(Product.category_id == category_id)
+        for tok in tokens:
+            query = query.filter(self._token_condition(tok, fuzzy))
+
+        if sort:
+            query = self._sort_products(query, sort)
+        elif not fuzzy:
+            # ранжирование: совпадения в названии весят больше, чем в описании
+            rank = func.ts_rank(
+                Product.search, func.plainto_tsquery("russian", " ".join(tokens))
+            )
+            query = query.order_by(rank.desc(), Product.created_at.desc(), Product.id)
+        else:
+            query = query.order_by(
+                func.similarity(Product.title, " ".join(tokens)).desc(), Product.id
+            )
+
+        return query.limit(limit).offset(offset).all()
+
+
+    def _public_filter(self, query, public_only: bool):
+        if public_only:
+            query = query.filter(
+                Product.is_show.is_(True),
+                Product.count > Product.reserved_count,
+            )
+        return query
+
+    def search(self, params, public_only: bool = False):
+        tokens = (params.string or "").split()[:MAX_TOKENS]
+        if not tokens:
+            return []
+
+        options = {
+            "tokens": tokens,
+            "limit": params.limit,
+            "offset": params.offset,
+            "min_price": params.min_price,
+            "max_price": params.max_price,
+            "sort": params.sort,
+            "public_only": public_only,
+        }
+
+        result = self._run(fuzzy=False, **options)
+        if result:
+            return result
+
+        return self._run(fuzzy=True, **options)
+    def update_product(self, uuid: UUID, form: ProductUpdate):
+        product = self.get_product(uuid)
+
+        if form.category_id is not None:
+            category = self.db.get(Categories, form.category_id)
+            if category is None:
+                raise HTTPException(404, "Category not found")
+
+        replace_images = "image_paths" in form.model_fields_set
+
+        if replace_images and form.image_urls is not None:
+            raise HTTPException(
+                400,
+                "Передайте либо image_paths для замены, "
+                "либо image_urls для перестановки",
+            )
+
+        old_images = list(product.image_paths or [])
+        images = old_images.copy()
+
+        if form.image_urls is not None:
+            if sorted(form.image_urls) != list(range(len(images))):
+                raise HTTPException(400, "Неверный порядок фотографий")
+
+            images = [images[index] for index in form.image_urls]
+
+        new_photo_paths = []
+
+        try:
+            if replace_images:
+                try:
+                    new_photo_paths = commit_tmp(
+                    form.image_paths,
+                    product_id=product.id,)
+                except FileNotFoundError:
+                    raise HTTPException(
+                        400,
+                        "Фото не найдено. Загрузите его повторно",
+                    ) from None
+
+                images = new_photo_paths
+
+            product.image_paths = images
+            product.category_id = form.category_id
+            product.title = form.title
+            product.price = form.price
+            product.description = form.description
+            product.count = form.count
+            product.is_show = form.is_show
+            product.is_show_case = form.is_show_case
+
+            product.compounds = [
+                CompoundProduct(title=item.title, quantity=item.quantity)
+                for item in form.compounds
+            ]
+
+            self.db.commit()
+
+        except Exception:
+            self.db.rollback()
+
+            rollback_photos(new_photo_paths)
+
+            raise
+
+        self.db.refresh(product)
+        if replace_images:
+            removed_images = set(old_images) - set(product.image_paths or [])
+
+            for image_url in removed_images:
+                self._delete_unused_image(image_url)
+
+        return product
+
+    def delete_product(self, product_id: UUID):
+        product = self.get_product(product_id)
+        if self.db.query(OrderItems.id).filter(OrderItems.product_id == product_id).first():
+            raise HTTPException(409, "Product is referenced by an order")
+
+        # Keep files referenced by another product or category.
+        photos_to_delete = []
+        for photo in product.image_paths or []:
+            try:
+                path = photo_path(photo)
+            except ValueError:
+                continue
+            used_by_product = self.db.query(Product.id).filter(
+                Product.id != product_id, Product.image_paths.contains([photo])
+            ).first()
+            used_by_category = self.db.query(Categories.id).filter(Categories.image_url == photo).first()
+            if not used_by_product and not used_by_category:
+                photos_to_delete.append(path)
+
+        try:
+            self.db.delete(product)
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            if getattr(exc.orig, "sqlstate", None) == "23503" or getattr(exc.orig, "pgcode", None) == "23503":
+                raise HTTPException(409, "Product is referenced by another record") from exc
+            raise
+        except Exception:
+            self.db.rollback()
+            raise
+        for path in photos_to_delete:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                logging.getLogger(__name__).exception("Could not delete product photo: %s", path)
+
+        remove_empty_product_dir(PRODUCT_DIR / str(product_id))
+
+        

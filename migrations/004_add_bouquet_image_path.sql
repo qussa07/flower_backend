@@ -1,0 +1,2 @@
+ALTER TABLE bouquets
+    ADD COLUMN IF NOT EXISTS image_path VARCHAR;

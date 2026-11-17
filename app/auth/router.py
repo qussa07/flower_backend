@@ -1,0 +1,34 @@
+from fastapi import APIRouter, Depends, HTTPException, Cookie, Response
+from sqlalchemy.orm import Session
+from database import getdb
+from .schemas import RegUsersModels, LoginUserModels
+from .service import AuthService
+
+
+
+router = APIRouter(prefix="/auth", tags=['Auth'])
+
+def get_user_service(db: Session = Depends(getdb)):
+    return AuthService(db)
+
+@router.post("/register")
+def register(data: RegUsersModels, response: Response, service: AuthService = Depends(get_user_service)):
+    return service.register(data, response)
+
+
+@router.post("/login")
+def login(response: Response, form: LoginUserModels, service: AuthService = Depends(get_user_service)):
+    return service.login(form, response)
+
+
+
+
+@router.post("/refresh")
+def refresh_session(response: Response, refresh_token: str | None = Cookie(default=None, alias="refresh_token"), service: AuthService = Depends(get_user_service)):
+    return service.refresh(response, refresh_token)
+
+
+@router.post("/logout")
+def logout(response: Response, refresh_token: str | None = Cookie(default=None, alias="refresh_token"), service: AuthService = Depends(get_user_service)):
+    return service.logout(response, refresh_token)
+
