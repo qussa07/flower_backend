@@ -36,9 +36,9 @@ class StaffOrdersService:
             .first()
         )
         if order is None:
-            raise HTTPException(404, "Not found")
+            raise HTTPException(404, "Заказ не найден")
         if order.payment_status != PaymentStatus.PAID:
-            raise HTTPException(409, "Only paid orders can be completed")
+            raise HTTPException(409, "Завершить можно только оплаченный заказ")
         if order.completion_status != CompletionStatusEnum.COMPLETED:
             order.completion_status = CompletionStatusEnum.COMPLETED
             self.db.commit()

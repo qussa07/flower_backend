@@ -5,7 +5,7 @@ from sqlalchemy import or_
 from database import getdb
 from app.user.schemas import UserSort, UserRole
 from app.user.models import User
-
+import pagination
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -41,10 +41,6 @@ class UserService:
                 )
             )
 
-        return (
+        return pagination.paginate(
             query
-            .order_by(ordering[sort], User.id.asc())
-            .offset((page - 1) * perPage)
-            .limit(perPage)
-            .all()
-        )
+            .order_by(ordering[sort], User.id.asc()), page, perPage)

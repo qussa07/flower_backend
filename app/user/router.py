@@ -27,7 +27,7 @@ def update_profile(
             User.phone_number == changes["phone_number"], User.id != user.id
         ).first()
         if existing:
-            raise HTTPException(status_code=409, detail="Phone number already in use")
+            raise HTTPException(status_code=409, detail="Этот номер телефона уже используется")
 
     for field, value in changes.items():
         if field == "password":
@@ -38,7 +38,7 @@ def update_profile(
     except IntegrityError as exc:
         db.rollback()
         if getattr(exc.orig, "sqlstate", None) == "23505":
-            raise HTTPException(status_code=409, detail="Phone number already in use") from exc
+            raise HTTPException(status_code=409, detail="Этот номер телефона уже используется") from exc
         raise
     db.refresh(user)
     return jsonable_encoder(user, exclude={"password"})

@@ -7,7 +7,7 @@ DECLARE
     id_data_type TEXT;
 BEGIN
     IF users_table_oid IS NULL THEN
-        RAISE EXCEPTION 'Table users does not exist in the current schema';
+        RAISE EXCEPTION 'В текущей схеме нет таблицы users';
     END IF;
 
     SELECT data_type
@@ -18,7 +18,7 @@ BEGIN
       AND column_name = 'id';
 
     IF id_data_type IS NULL THEN
-        RAISE EXCEPTION 'Column users.id does not exist';
+        RAISE EXCEPTION 'Столбец users.id отсутствует';
     END IF;
 
     IF id_data_type = 'uuid' THEN
@@ -33,7 +33,7 @@ BEGIN
           AND confrelid = users_table_oid
     ) THEN
         RAISE EXCEPTION
-            'A foreign key references users. Migrate referencing columns together with users.id.';
+            'На таблицу users ссылается внешний ключ. Перенесите ссылающиеся столбцы вместе с users.id.';
     END IF;
 
     SELECT constraint_name
@@ -44,7 +44,7 @@ BEGIN
       AND constraint_type = 'PRIMARY KEY';
 
     IF primary_key_name IS NULL THEN
-        RAISE EXCEPTION 'users table has no primary key';
+        RAISE EXCEPTION 'У таблицы users нет первичного ключа';
     END IF;
 
     ALTER TABLE users

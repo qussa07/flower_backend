@@ -42,7 +42,7 @@ class OrdersService():
           result = None
           if form.delivery_method == DeliveryMethod.DELIVERY:
                if form.shipping_address is None:
-                    raise HTTPException(422, "Delivery address is required")
+                    raise HTTPException(422, "Укажите адрес доставки")
                else:
                     result = utils.check_adress(form.shipping_address)
 
@@ -52,9 +52,9 @@ class OrdersService():
                 detail="Не удалось проверить адрес. Попробуйте позже.",
             )
           errors = {
-          "not_found": "Address not found in Kazan. Please check the address.",
-          "out_of_zone": "Delivery is available only within Kazan.",
-          "need_house_number": "Please provide a house number.",
+          "not_found": "Адрес в Казани не найден. Проверьте адрес.",
+          "out_of_zone": "Доставка доступна только в пределах Казани.",
+          "need_house_number": "Укажите номер дома.",
           }
 
           if result in errors:
@@ -99,8 +99,8 @@ class OrdersService():
           self.db.refresh(order)
           return {"id": order.id}
 
-     def finish_reservation(self, order: Orders, *, sold: bool):
-          """Освободить резерв или завершить продажу, без commit()."""
+     """def finish_reservation(self, order: Orders, *, sold: bool):
+          #Освободить резерв или завершить продажу, без commit().
           if not order.stock_reserved:
                return
 
@@ -135,7 +135,7 @@ class OrdersService():
                if sold:
                     product.count -= quantity
 
-          order.stock_reserved = False
+          order.stock_reserved = False"""
 
      
      def get_order(self, user: User, order_id: UUID):
@@ -150,13 +150,13 @@ class OrdersService():
           )
 
           if order is None:
-               raise HTTPException(404, "Not found")
+               raise HTTPException(404, "Заказ не найден")
 
           return order
 
 
-     def reserve_order_items(self, order: Orders, items):
-          """Зарезервировать товары для нового заказа без commit()."""
+     """"def reserve_order_items(self, order: Orders, items):
+           # Зарезервировать товары для нового заказа без commit().
           product_ids = [item.product_id for item in items]
 
           # Блокируем товары на время транзакции.
@@ -227,7 +227,7 @@ class OrdersService():
                )
 
                if order is None:
-                    raise HTTPException(404, "Order not found")
+                    raise HTTPException(404, "Заказ не найден")
 
                return order
 
@@ -238,13 +238,13 @@ class OrdersService():
                     or payment.amount.currency != "RUB"
                     or str((payment.metadata or {}).get("order_id")) != str(order.id)
                ):
-                    raise HTTPException(409, "Payment mismatch")
+                    raise HTTPException(409, "Данные платежа не совпадают с данными заказа")
 
                if (
                     payment.status in ("waiting_for_capture", "succeeded")
                     and payment.paid is not True
                ):
-                    raise HTTPException(409, "Payment is not authorized")
+                    raise HTTPException(409, "Платёж не авторизован")
 
           try:
                payment = Payment.find_one(payment_id)
@@ -267,7 +267,7 @@ class OrdersService():
                # Решение выбираем только один раз.
                if order.payment_action is None:
                     if order.expireAt is None:
-                         raise HTTPException(409, "Order payment deadline is missing")
+                         raise HTTPException(409, "У заказа не указан срок оплаты")
 
                     can_capture = (
                          order.payment_status == PaymentStatus.PENDING
@@ -284,13 +284,13 @@ class OrdersService():
                action = order.payment_action
 
                if action not in ("capture", "cancel"):
-                    raise HTTPException(409, "Invalid payment action")
+                    raise HTTPException(409, "Недопустимое действие с платежом")
 
                if action == "capture" and (
                     order.payment_status != PaymentStatus.PENDING
                     or not order.stock_reserved
                ):
-                    raise HTTPException(409, "Capture conflicts with order state")
+                    raise HTTPException(409, "Статус заказа не позволяет списать платёж")
 
                # Сохраняем решение ДО внешнего запроса.
                # При таймауте оно останется в БД.
@@ -360,7 +360,7 @@ class OrdersService():
           ip = request.client.host if request.client else None
 
           if not ip or not utils.is_yookassa_ip(ip):
-               raise HTTPException(403, "Forbidden")
+               raise HTTPException(403, "Доступ запрещён")
 
           if notification.event not in (
                "payment.waiting_for_capture",
@@ -405,10 +405,10 @@ class OrdersService():
                     .filter(Orders.id == order_id, Orders.customer_id == user.id)
                     .first())
           if order is None:
-               raise HTTPException(404, "Not found")
+               raise HTTPException(404, "Заказ не найден")
           if order.payment_status != PaymentStatus.PENDING:
                raise HTTPException(409, "Заказ не ожидает оплаты")
           if order.expireAt < datetime.now(timezone.utc):
                raise HTTPException(409, "Время оплаты истекло")
 
-          return self._start_payment(order)
+          return self._start_payment(order)"""

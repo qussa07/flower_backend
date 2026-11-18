@@ -1,5 +1,8 @@
+from os import getenv
+
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
+from fastapi.middleware.cors import CORSMiddleware
 from app.auth.router import router as auth_router
 from app.user.router import router as profile_router
 from app.product.router import router as product_router
@@ -15,9 +18,19 @@ from app.categories.models import Categories
 from app.errors import validation_error_handler
 from database import create_tables
 from lib.file_system import lifespan
+from fastapi.middleware.cors import CORSMiddleware
 
 
+
+client_port = getenv("CLIENT_PRT", "3000")
 app = FastAPI(lifespan=lifespan)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:{client_port}".format(client_port=client_port)],
+    allow_credentials=True,
+    allow_methods=["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"],
+    allow_headers=["Authorization", "Content-Type"],
+)
 app.add_exception_handler(RequestValidationError, validation_error_handler)
 create_tables()
 app.mount(

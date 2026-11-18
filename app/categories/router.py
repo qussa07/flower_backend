@@ -9,6 +9,8 @@ from database import getdb, get_redis
 from .schemas import CategoryCreate, CategoryResponse, CategoryUpdate
 from .service import CategoriesService
 
+import pagination
+
 
 router = APIRouter(prefix="/categories", tags=["categories"])
 
@@ -25,7 +27,7 @@ def create_category(form: CategoryCreate, service: CategoriesService = Depends(g
 def upload_photo(photo: list[UploadFile] = File(...), redis = Depends(get_redis), service: CategoriesService = Depends(get_categories_service)):
     return service.upload_file(photo, redis)
 
-@router.get("/", response_model=list[CategoryResponse])
+@router.get("/", response_model=pagination.Page[CategoryResponse])
 def get_categories(
     page: int = Query(1, ge=1),
     perPage: int = Query(20, ge=1, le=100),

@@ -1,6 +1,9 @@
+from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
+from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic_core import PydanticCustomError
 
 
 UserSort = Literal["asc", "desc", "new", "old"]
@@ -25,7 +28,17 @@ class UserUpdate(BaseModel):
     @model_validator(mode="after")
     def validate_update(self):
         if not self.model_fields_set:
-            raise ValueError("At least one field is required")
+            raise PydanticCustomError("request_value_invalid", "Укажите хотя бы одно поле для обновления профиля")
         if any(getattr(self, field) is None for field in self.model_fields_set):
-            raise ValueError("Fields cannot be null")
+            raise PydanticCustomError("request_value_invalid", "Переданные поля профиля должны содержать значения")
         return self
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    name: str
+    phone_number: str
+    role: UserRole
+    created_at: datetime

@@ -108,7 +108,7 @@ def commit_tmp(
     try:
         for upload_id in upload_ids:
             if not ID_RE.fullmatch(upload_id):
-                raise ValueError("Некорректный upload_id")
+                raise ValueError("Некорректный идентификатор загруженного файла")
 
             if Path(upload_id).suffix:
                 src = TMP_DIR / upload_id

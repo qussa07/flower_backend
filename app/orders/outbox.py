@@ -69,7 +69,7 @@ async def publish_outbox(
             if await publish_one(queue):
                 continue
         except Exception:
-            logger.exception("Ошибка отправки outbox")
+            logger.exception("Не удалось отправить сообщение из очереди исходящих событий")
 
         try:
             await asyncio.wait_for(

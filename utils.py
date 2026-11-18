@@ -74,9 +74,9 @@ def decode_access_token(token: str) -> dict | None:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         return payload
     except jwt.ExpiredSignatureError:
-        return HTTPException(status_code=401, detail="Invalid token")
+        return HTTPException(status_code=401, detail="Недействительный токен")
     except jwt.InvalidTokenError:
-        return HTTPException(status_code=401, detail="Invalid token")
+        return HTTPException(status_code=401, detail="Недействительный токен")
 
 
 def create_refresh_token(user_id: UUID) -> str:
@@ -101,21 +101,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         if payload.get("type") != "access":
-            raise HTTPException(status_code=401, detail="Invalid token type")
+            raise HTTPException(status_code=401, detail="Неверный тип токена")
         user_id = payload.get("sub")
         if not isinstance(user_id, str):
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Недействительный токен")
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Срок действия токена истёк")
     except jwt.PyJWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Недействительный токен")
 
     try:
         parsed_user_id = UUID(user_id)
     except ValueError:
-        raise HTTPException(status_code=401, detail="Invalid token") from None
+        raise HTTPException(status_code=401, detail="Недействительный токен") from None
 
     user = db.query(User).filter(User.id == parsed_user_id).first()
     if user is None:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        raise HTTPException(status_code=401, detail="Недействительный токен")
     return user
 
 
@@ -124,7 +126,7 @@ def require_role(*roles: UserRole):
         if user.role not in roles:
             raise HTTPException(
                 status_code=403,
-                detail="Insufficient permissions"
+                detail="Недостаточно прав"
             )
         return user
     return checker
@@ -173,7 +175,7 @@ def require_staff_ws(
     if not token:
         raise WebSocketException(
             code=1008,
-            reason="Missing token",
+            reason="Токен не передан",
         )
 
     try:
@@ -187,33 +189,9 @@ def require_staff_ws(
     except HTTPException as exc:
         raise WebSocketException(
             code=1008,
-            reason="Unauthorized or forbidden",
+            reason="Требуется авторизация или недостаточно прав",
         ) from exc
 
-
-
-def paginate(query, page: int, per_page: int):
-    total = query.order_by(None).count()
-    last_page = max(1, (total + per_page - 1) // per_page)
-
-    items = (
-        query
-        .offset((page - 1) * per_page)
-        .limit(per_page)
-        .all()
-    )
-
-    return {
-        "data": items,
-        "meta": {
-            "perPage": per_page,
-            "currentPage": page,
-            "lastPage": last_page,
-            "total": total,
-            "isNext": page < last_page,
-            "isPrev": page > 1,
-        },
-    }
 
 
 

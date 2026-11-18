@@ -42,7 +42,7 @@ async def process(job, job_token):
     return {"status": outcome}
 
 def on_error(error, *args):
-    logger.error("Ошибка worker: %s", error)
+    logger.error("Ошибка обработчика задач: %s", error)
 
 
 def on_failed(job, error):

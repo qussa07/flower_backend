@@ -20,7 +20,7 @@ from .storage import (
 )
 from sqlalchemy import String, cast, or_
 from app.categories.models import Categories
-import shutil
+import pagination
 import utils
 from uuid import UUID, uuid4
 import logging
@@ -99,13 +99,13 @@ class ProductService():
         product = query.first()
 
         if product is None:
-            raise HTTPException(404, "Product not found")
+            raise HTTPException(404, "Товар не найден")
 
         return product
 
     def _price_filter(self, query, min_price, max_price):
         if min_price is not None and max_price is not None and min_price > max_price:
-            raise HTTPException(422, "min_price must not exceed max_price")
+            raise HTTPException(422, "Минимальная цена не может превышать максимальную")
         if min_price is not None:
             query = query.filter(Product.price >= min_price)
         if max_price is not None:
@@ -128,10 +128,9 @@ class ProductService():
     def get_products(self, page: int, perPage: int, search=None, 
                      min_price=None, max_price=None, category_id: UUID | None = None, sort=None, 
                      is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
-        offset = (page - 1) * perPage
         tokens = (search or "").split()[:MAX_TOKENS]
         if tokens:
-            result = self._run(tokens=tokens, fuzzy=False, limit=perPage, offset=offset, min_price=min_price, max_price=max_price, sort=sort, category_id=category_id, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
+            result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_id=category_id, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
             return result
         query = self._price_filter( 
         self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
@@ -147,11 +146,11 @@ class ProductService():
             query = self._sort_products(query, sort)
         else:
             query = query.order_by(Product.created_at.desc(), Product.id)
-        return query.offset(offset).limit(perPage).all()
+        return pagination.paginate(query, page, perPage)
 
     def upload_file(self, photos: list[UploadFile],  redis: Session):
         if len(photos) > MAX_FILES:
-            raise HTTPException(400, f"No more than {MAX_FILES} files")
+            raise HTTPException(400, f"Можно загрузить не больше {MAX_FILES} файлов")
 
         contents = []
         for photo in photos:
@@ -227,7 +226,7 @@ class ProductService():
             )
         return or_(*conds)
 
-    def _run(self, tokens, fuzzy, limit, offset, min_price=None, max_price=None, category_id=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_id=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
         query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
         query = self._public_filter(query, public_only)
         
@@ -256,7 +255,7 @@ class ProductService():
                 func.similarity(Product.title, " ".join(tokens)).desc(), Product.id
             )
 
-        return query.limit(limit).offset(offset).all()
+        return pagination.paginate(query, page, per_page)
 
 
     def _public_filter(self, query, public_only: bool):
@@ -270,12 +269,21 @@ class ProductService():
     def search(self, params, public_only: bool = False):
         tokens = (params.string or "").split()[:MAX_TOKENS]
         if not tokens:
-            return []
+            return {
+                "data": [],
+                "meta": {
+            "perPage": params.per_page,
+            "currentPage": params.page,
+            "lastPage": 1,
+            "total": 0,
+            "isNext": False,
+            "isPrev": params.page > 1,},
+            }
 
         options = {
             "tokens": tokens,
-            "limit": params.limit,
-            "offset": params.offset,
+            "per_page": params.per_page,
+            "page": params.page,
             "min_price": params.min_price,
             "max_price": params.max_price,
             "sort": params.sort,
@@ -283,7 +291,7 @@ class ProductService():
         }
 
         result = self._run(fuzzy=False, **options)
-        if result:
+        if result["meta"]["total"] > 0:
             return result
 
         return self._run(fuzzy=True, **options)
@@ -293,7 +301,7 @@ class ProductService():
         if form.category_id is not None:
             category = self.db.get(Categories, form.category_id)
             if category is None:
-                raise HTTPException(404, "Category not found")
+                raise HTTPException(404, "Категория не найдена")
 
         replace_images = "image_paths" in form.model_fields_set
 
@@ -364,7 +372,7 @@ class ProductService():
     def delete_product(self, product_id: UUID):
         product = self.get_product(product_id)
         if self.db.query(OrderItems.id).filter(OrderItems.product_id == product_id).first():
-            raise HTTPException(409, "Product is referenced by an order")
+            raise HTTPException(409, "Товар входит в заказ")
 
         # Keep files referenced by another product or category.
         photos_to_delete = []
@@ -386,7 +394,7 @@ class ProductService():
         except IntegrityError as exc:
             self.db.rollback()
             if getattr(exc.orig, "sqlstate", None) == "23503" or getattr(exc.orig, "pgcode", None) == "23503":
-                raise HTTPException(409, "Product is referenced by another record") from exc
+                raise HTTPException(409, "На товар ссылается другая запись") from exc
             raise
         except Exception:
             self.db.rollback()

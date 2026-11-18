@@ -10,7 +10,8 @@ from app.user.service import UserService, get_user_service
 from app.staff.schemas import StaffOrderResponse
 from app.staff.service import StaffOrdersService
 from app.user.models import User
-from app.user.schemas import UserSort, UserRole
+from app.user.schemas import UserResponse, UserSort, UserRole
+import pagination
 from utils import require_staff, require_staff_ws
 from decimal import Decimal
 
@@ -28,7 +29,7 @@ def get_orders(
 ):
     return service.get_orders()
 
-@router.get("/users", dependencies=[Depends(require_staff)])
+@router.get("/users",response_model=pagination.Page[UserResponse], dependencies=[Depends(require_staff)])
 def get_users(page: int= Query(1, ge=1),
     perPage: int = Query(20, ge=1, le=100),
     search: str = "",

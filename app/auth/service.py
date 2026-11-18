@@ -27,7 +27,7 @@ class AuthService:
                 User.phone_number == form.phone_number
         ).first()
         if user_exists:
-            raise HTTPException(status_code=400, detail="User already exists")
+            raise HTTPException(status_code=400, detail="Пользователь с таким номером телефона уже существует")
         new_user = User(
             password=utils.hashed_password(form.password),
             phone_number=form.phone_number,
@@ -45,26 +45,26 @@ class AuthService:
     def login(self, form: LoginUserModels, response: Response):
         user = self.db.query(User).filter(User.phone_number == form.phone_number).first()
         if not user or not utils.verify_password(form.password, user.password):
-            raise HTTPException(status_code=404, detail="Invalid phone or password")
+            raise HTTPException(status_code=404, detail="Неверный номер телефона или пароль")
         access, refresh = utils.create_access_token(user.id), utils.create_refresh_token(user.id)
         self._set_cookie(response, refresh)
         return {"access_token": access}
 
     def refresh(self, response: Response, refresh_token: Cookie):
         if not refresh_token:
-            raise HTTPException(status_code=401, detail="Token is missing")
+            raise HTTPException(status_code=401, detail="Токен не передан")
         
         data = utils.verify_refresh_token(refresh_token)
         if not data:
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Недействительный токен")
         
         subject = data.get("sub")
         if not isinstance(subject, str):
-            raise HTTPException(status_code=401, detail="Invalid token")
+            raise HTTPException(status_code=401, detail="Недействительный токен")
         try:
             user_id = UUID(subject)
         except ValueError:
-            raise HTTPException(status_code=401, detail="Invalid token") from None
+            raise HTTPException(status_code=401, detail="Недействительный токен") from None
         
         access = utils.create_access_token(user_id)
         refresh = utils.create_refresh_token(user_id)
@@ -75,11 +75,11 @@ class AuthService:
 
     def logout(self, response: Response, refresh_token: str | None = Cookie(default=None, alias="refresh_token")):
         if not refresh_token:
-            raise HTTPException( status_code=401, detail="No active session to logout")
+            raise HTTPException( status_code=401, detail="Нет активной сессии для выхода")
 
         data = utils.verify_refresh_token(refresh_token)
         if not data:
-            raise HTTPException(status_code=401, detail="Invalid or expired session")
+            raise HTTPException(status_code=401, detail="Сессия недействительна или истекла")
     
         response.delete_cookie(
             key="refresh_token",

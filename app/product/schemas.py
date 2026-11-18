@@ -39,5 +39,5 @@ class ProductSearchParams(BaseModel):
     min_price: Decimal | None = Field(default=None, ge=0)
     max_price: Decimal | None = Field(default=None, ge=0)
     sort: ProductSort | None = None
-    limit: int = Field(default=20, ge=1, le=100)
-    offset: int = Field(default=0, ge=0)
+    per_page: int = Field(default=20, ge=1, le=100)
+    page: int = Field(default=1, ge=1)

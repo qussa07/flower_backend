@@ -4,6 +4,7 @@ from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator, EmailStr
+from pydantic_core import PydanticCustomError
 
 
 class DeliveryMethod(str, Enum):
@@ -46,17 +47,17 @@ class OrdersModels(BaseModel):
     @classmethod
     def validate_local_time(cls, value):
         if value.tzinfo is not None:
-            raise ValueError("Delivery time must not include a timezone offset")
+            raise PydanticCustomError("request_value_invalid", "Укажите время доставки без часового пояса")
         return value
 
     @model_validator(mode="after")
     def validate_order(self):
         if self.delivery_time_start >= self.delivery_time_end:
-            raise ValueError("Delivery time start must precede end")
+            raise PydanticCustomError("request_value_invalid", "Время начала доставки должно быть раньше окончания")
         if self.delivery_method == DeliveryMethod.DELIVERY and not self.shipping_address:
-            raise ValueError("Shipping address is required for delivery")
+            raise PydanticCustomError("request_value_invalid", "Укажите адрес доставки")
         if len({item.product_id for item in self.items}) != len(self.items):
-            raise ValueError("Duplicate products: combine their quantities")
+            raise PydanticCustomError("request_value_invalid", "Объедините одинаковые товары в одну позицию заказа")
         return self
 
 

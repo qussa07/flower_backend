@@ -19,6 +19,8 @@ from app.product.storage import (
 from .models import Categories
 from .schemas import CategoryCreate, CategoryUpdate, CategorySort
 
+import pagination
+
 
 class CategoriesService:
     def __init__(self, db: Session):
@@ -26,7 +28,7 @@ class CategoriesService:
 
     def upload_file(self, photos: list[UploadFile], redis):
         if len(photos) != 1:
-            raise HTTPException(400, "Upload exactly one image")
+            raise HTTPException(400, "Загрузите ровно одно изображение")
         return ProductService(self.db).upload_file(photos, redis)
 
     def create_category(self, form: CategoryCreate):
@@ -35,7 +37,7 @@ class CategoriesService:
             try:
                 image_path = commit_tmp([form.photo_id])[0]
             except FileNotFoundError:
-                raise HTTPException(400, "Photo not found; please upload it again")
+                raise HTTPException(400, "Фото не найдено. Загрузите его повторно")
         category = Categories(title=form.title, image_url=image_path)
         try:
             self.db.add(category)
@@ -68,22 +70,17 @@ class CategoriesService:
                 Categories.title.ilike(f"%{search}%")
             )
 
-        return (
-            query
-            .group_by(
-                Categories.id,
-                Categories.title,
-                Categories.image_url,
-            )
-            .order_by(ordering[sort], Categories.id)
-            .offset((page - 1) * perPage)
-            .limit(perPage)
-            .all()
-        )
+        query = query.group_by(
+                        Categories.id,
+                        Categories.title,
+                        Categories.image_url,).order_by(ordering[sort], Categories.id)
+
+        return pagination.paginate(query, page, perPage)
+        
     def get_category(self, category_id: UUID):
         category = self.db.get(Categories, category_id)
         if category is None:
-            raise HTTPException(404, "Category not found")
+            raise HTTPException(404, "Категория не найдена")
         return category
 
     def _delete_unused_image(self, image_url: str | None):
@@ -110,7 +107,7 @@ class CategoriesService:
         category = self.get_category(category_id)
         fields = form.model_fields_set
         if "title" in fields and form.title is None:
-            raise HTTPException(422, "Title cannot be null")
+            raise HTTPException(422, "Укажите название категории")
         
         old_image = category.image_url
         new_photo = None
@@ -118,7 +115,7 @@ class CategoriesService:
             try:
                 new_photo = commit_tmp([form.photo_id])[0]
             except FileNotFoundError:
-                raise HTTPException(400, "Photo not found; please upload it again")
+                raise HTTPException(400, "Фото не найдено. Загрузите его повторно")
 
         if "title" in fields:
             category.title = form.title
@@ -140,7 +137,7 @@ class CategoriesService:
     def delete_category(self, category_id: UUID):
         category = self.get_category(category_id)
         if self.db.query(Product.id).filter(Product.category_id == category_id).first():
-            raise HTTPException(409, "Category contains products")
+            raise HTTPException(409, "В категории есть товары")
         old_image = category.image_url
         try:
             self.db.delete(category)
@@ -148,7 +145,7 @@ class CategoriesService:
         except IntegrityError as exc:
             self.db.rollback()
             if getattr(exc.orig, "sqlstate", None) == "23503" or getattr(exc.orig, "pgcode", None) == "23503":
-                raise HTTPException(409, "Category is referenced by another record") from exc
+                raise HTTPException(409, "На категорию ссылается другая запись") from exc
             raise
         except Exception:
             self.db.rollback()
