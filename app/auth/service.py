@@ -1,14 +1,33 @@
 from uuid import UUID
 
+from datetime import datetime, timezone
+
+import secrets
+from hashlib import sha256
+
+from sqlalchemy import func, update, text
+
+from .mail import send_verification_code
+from .otp import check_code, delete_code, generate_code, is_on_cooldown, issue_code
+from .schemas import LoginUserModels, RegUsersModels, VerifyEmailRequest
+
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 from .schemas import RegUsersModels, LoginUserModels
 from ..user.models import User
 from fastapi import HTTPException ,Response, Cookie
 import utils
 
+from sqlalchemy.exc import IntegrityError
+
 class AuthService:
     def __init__(self, db: Session):
         self.db = db
+
+
+    @staticmethod
+    def _verification_session(session_id: str, password_hash: str) -> str:
+        return sha256(f"{session_id}:{password_hash}".encode("utf-8")).hexdigest()
 
 
     def _set_cookie(self, response: Response, refresh: str):
@@ -19,33 +38,110 @@ class AuthService:
                 secure=False, #временно 
                 samesite="lax",
                 max_age=7 * 24 * 60 * 60,
-                path="/auth"
+                path="/"
             )
 
-    def register(self, form: RegUsersModels, response: Response):
-        user_exists = self.db.query(User).filter(
-                User.phone_number == form.phone_number
-        ).first()
-        if user_exists:
-            raise HTTPException(status_code=400, detail="Пользователь с таким номером телефона уже существует")
-        new_user = User(
-            password=utils.hashed_password(form.password),
-            phone_number=form.phone_number,
-            name=form.name
-        )
-        self.db.add(new_user)
-        self.db.commit()
-        self.db.refresh(new_user)
+    def register(self, form: RegUsersModels):
+        email = form.email.lower()
 
-        access, refresh = utils.create_access_token(new_user.id), utils.create_refresh_token(new_user.id)
-        self._set_cookie(response, refresh)
-        return {"access_token": access}
+        try:
+            acquired = self.db.execute(
+                text("SELECT pg_try_advisory_xact_lock(hashtextextended(:email, 0))"),
+                {"email": email},
+            ).scalar_one()
+
+            if not acquired or is_on_cooldown(email):
+                raise HTTPException(
+                    status_code=429,
+                    detail="Подожди перед повторной отправкой",
+                )
+            user = (
+                self.db.query(User)
+                .filter(func.lower(User.email) == email)
+                .with_for_update()
+                .one_or_none()
+            )
+
+            if user is None:
+                self.db.add(User(
+                    email=email,
+                    name=form.name,
+                    password=utils.hashed_password(form.password),
+                ))
+            elif user.email_verified_at is not None:
+                raise HTTPException(status_code=409, detail="Email уже используется")
+            elif not utils.verify_password(form.password, user.password):
+                raise HTTPException(
+                    status_code=409,
+                    detail="По этому email уже начата регистрация",
+                )
+
+            code = generate_code()
+            try:
+                send_verification_code(email, code)
+            except OSError as exc:
+                self.db.rollback()
+                raise HTTPException(
+                    status_code=503,
+                    detail="Не удалось отправить письмо. Попробуй ещё раз",
+                ) from exc
+
+            self.db.flush()
+
+            issued = issue_code(email, code)
+            if issued is None:
+                self.db.rollback()
+                raise HTTPException(
+                    status_code=429,
+                    detail="Подожди перед повторной отправкой",
+                )
+
+            registration_id, _ = issued
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            constraint = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            if constraint == "uq_users_email_lower":
+                raise HTTPException(status_code=409, detail="Email уже используется") from exc
+            raise
+
+        return {"registration_id": str(registration_id)}
+
+
+    def verify_email(self, form: VerifyEmailRequest):
+        email = check_code(form.registration_id, form.code)
+        if email is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Код неверный, просрочен или попытки закончились",
+            )
+
+        user_id = self.db.execute(
+            update(User)
+            .where(User.email == email, User.email_verified_at.is_(None))
+            .values(email_verified_at=datetime.now(timezone.utc))
+            .returning(User.id)
+        ).scalar_one_or_none()
+
+        if user_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail="Аккаунт уже подтверждён или не найден",
+            )
+
+        self.db.commit()
+        delete_code(form.registration_id)
+        return {"status": "verified"}
 
 
     def login(self, form: LoginUserModels, response: Response):
-        user = self.db.query(User).filter(User.phone_number == form.phone_number).first()
-        if not user or not utils.verify_password(form.password, user.password):
-            raise HTTPException(status_code=404, detail="Неверный номер телефона или пароль")
+        user = self.db.query(User).filter(
+            func.lower(User.email) == func.lower(form.email)).one_or_none()
+        
+        if user is None or not utils.verify_password(form.password, user.password):
+            raise HTTPException(status_code=404, detail="Неверный email или пароль")
+        if user.email_verified_at is None:
+                raise HTTPException(status_code=403, detail="Подтвердите электронную почту")
         access, refresh = utils.create_access_token(user.id), utils.create_refresh_token(user.id)
         self._set_cookie(response, refresh)
         return {"access_token": access}

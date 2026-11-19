@@ -23,7 +23,7 @@ class ProductModels(BaseModel):
     is_show_case: bool
     compounds: list[CompositionItem]
     image_paths: list[PhotoId] = Field(default_factory=list, max_length=5)
-    description: str = Field(max_length=256)
+    description: str = Field(max_length=255)
 
 
 class ProductUpdate(ProductModels):

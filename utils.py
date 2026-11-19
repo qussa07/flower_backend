@@ -106,7 +106,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if not isinstance(user_id, str):
             raise HTTPException(status_code=401, detail="Недействительный токен")
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=401, detail="Срок действия токена истёк")
+        raise HTTPException(status_code=401, detail="jwt expired")
     except jwt.PyJWTError:
         raise HTTPException(status_code=401, detail="Недействительный токен")
 

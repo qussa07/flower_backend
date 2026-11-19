@@ -6,6 +6,8 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, computed_field, field_validator, model_validator, EmailStr
 from pydantic_core import PydanticCustomError
 
+from zoneinfo import ZoneInfo
+
 
 class DeliveryMethod(str, Enum):
     DELIVERY = "delivery"

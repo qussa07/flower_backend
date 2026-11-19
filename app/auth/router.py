@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Response
 from sqlalchemy.orm import Session
 from database import getdb
-from .schemas import RegUsersModels, LoginUserModels
+from .schemas import RegUsersModels, LoginUserModels, VerifyEmailRequest
 from .service import AuthService
 
 
@@ -12,8 +12,15 @@ def get_user_service(db: Session = Depends(getdb)):
     return AuthService(db)
 
 @router.post("/register")
-def register(data: RegUsersModels, response: Response, service: AuthService = Depends(get_user_service)):
-    return service.register(data, response)
+def register(data: RegUsersModels, service: AuthService = Depends(get_user_service)):
+    return service.register(data)
+
+@router.post("/verify")
+def verify_email(
+    data: VerifyEmailRequest,
+    service: AuthService = Depends(get_user_service),
+):
+    return service.verify_email(data)
 
 
 @router.post("/login")
