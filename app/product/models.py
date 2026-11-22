@@ -30,8 +30,7 @@ class Product(Base):
         Column(
             TSVECTOR,
             Computed(
-                "setweight(to_tsvector('russian', coalesce(title, '')), 'A') || "
-                "setweight(to_tsvector('russian', coalesce(description, '')), 'B')",
+                "setweight(to_tsvector('russian', coalesce(title, '')), 'A') || ",  #"setweight(to_tsvector('russian', coalesce(description, '')), 'B')"
                 persisted=True,
             ),
         )
