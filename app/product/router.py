@@ -12,7 +12,7 @@ import utils
 
 
 
-router = APIRouter(prefix="/product", tags=['Product'])
+router = APIRouter(prefix="/products", tags=['Products'])
 
 
 def get_user_service(db: Session = Depends(getdb)):
@@ -40,13 +40,6 @@ def get_products(
     service: ProductService = Depends(get_user_service),
 ):
     return service.get_products(page=page, perPage=perPage, search=search, min_price=min_price, max_price=max_price, category_id=category_id, sort=sort,  public_only=True)
-
-@router.get("/search")
-def search_products(
-    params: Annotated[ProductSearchParams, Query()], service: ProductService = Depends(get_user_service)):
-    return service.search(params, public_only=True)
-
-
 
 @router.get("/{product_id}")
 def get_product(product_id: UUID, service: ProductService = Depends(get_user_service)):

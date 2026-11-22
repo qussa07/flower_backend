@@ -155,6 +155,66 @@ class OrdersService():
           return order
 
 
+     def reserve_order_items(self, order: Orders, items):
+           # Зарезервировать товары для нового заказа без commit().
+          product_ids = [item.product_id for item in items]
+
+          # Блокируем товары на время транзакции.
+          products = (
+               self.db.query(Product)
+               .filter(Product.id.in_(product_ids))
+               .order_by(Product.id)
+               .populate_existing()
+               .with_for_update()
+               .all()
+          )
+
+          products_by_id = {product.id: product for product in products}
+
+          # Сначала проверяем все позиции.
+          for item in items:
+               product = products_by_id.get(item.product_id)
+
+               if product is None:
+                    raise HTTPException(404, "Товар не найден")
+
+               if not product.is_show:
+                    raise HTTPException(
+                         409,
+                         f"Товар недоступен: {product.title}",
+                    )
+
+               available = product.count - product.reserved_count
+
+               if available < item.quantity:
+                    raise HTTPException(
+                         409,
+                         f"Недостаточно товара: {product.title}. "
+                         f"Доступно: {available}",
+                    )
+
+          # Затем резервируем и формируем позиции заказа.
+          total_amount = Decimal("0.00")
+
+          for item in items:
+               product = products_by_id[item.product_id]
+
+               product.reserved_count += item.quantity
+
+               order.items.append(
+                    OrderItems(
+                         product_id=product.id,
+                         product_title=product.title,
+                         quantity=item.quantity,
+                         unit_price=product.price,
+                    )
+               )
+
+               total_amount += product.price * item.quantity
+
+          order.total_amount = total_amount
+          order.stock_reserved = True
+
      """"def reserve_order_items(self, order: Orders, items):
            # Зарезервировать товары для нового заказа без commit().
           product_ids = [item.product_id for item in items]

@@ -179,7 +179,7 @@ class AuthService:
     
         response.delete_cookie(
             key="refresh_token",
-            path="/auth"
+            path="/"
         )
     
         return {"status": "success", "message": "You logout"}

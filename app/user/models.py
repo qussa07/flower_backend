@@ -12,7 +12,7 @@ class User(Base):
     __tablename__ = "users"
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    email = Column(String(254), nullable=False)
+    email = Column(String(254), nullable=False, unique=True)
     email_verified_at = Column(DateTime(timezone=True), nullable=True)
     password = Column(String(60), nullable=False)
     name = Column(String(30), nullable=False)

@@ -33,9 +33,9 @@ class CategoriesService:
 
     def create_category(self, form: CategoryCreate):
         image_path = None
-        if form.photo_id:
+        if form.image_path:
             try:
-                image_path = commit_tmp([form.photo_id])[0]
+                image_path = commit_tmp([form.image_path])[0]
             except FileNotFoundError:
                 raise HTTPException(400, "Фото не найдено. Загрузите его повторно")
         category = Categories(title=form.title, image_url=image_path)
@@ -111,9 +111,9 @@ class CategoriesService:
         
         old_image = category.image_url
         new_photo = None
-        if form.photo_id is not None:
+        if form.image_path is not None:
             try:
-                new_photo = commit_tmp([form.photo_id])[0]
+                new_photo = commit_tmp([form.image_path])[0]
             except FileNotFoundError:
                 raise HTTPException(400, "Фото не найдено. Загрузите его повторно")
 
