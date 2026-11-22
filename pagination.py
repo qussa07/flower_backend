@@ -35,7 +35,6 @@ def paginate(query, page: int, per_page: int):
     return {
         "data": items,
         "meta": {
-            "perPage": per_page,
             "currentPage": page,
             "lastPage": last_page,
             "total": total,
