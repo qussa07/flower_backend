@@ -11,7 +11,7 @@ from urllib.parse import urlsplit
 from uuid import NAMESPACE_URL, uuid5
 
 # Настройки импорта
-SOURCE_DIR = Path(__file__).resolve().parent / "json"
+SOURCE_DIR = Path(__file__).resolve().parent / "page"
 CATEGORIES_FILE = "categories.json"
 PRODUCT_FILES = ("page2.json", "page3.json", "page4.json")  # Можно указать несколько файлов в нужном порядке.
 PRODUCT_LIMIT = 20  # Первые 20 подходящих товаров. None — все товары из выбранных файлов.
@@ -184,7 +184,7 @@ def import_catalog(categories, products, compounds, api_url, token, state_path):
                     if not source["image_url"]:
                         raise ValueError(f"No cover image for category {source['title']!r}")
                     photo_id, = upload_photos(api, downloads, "categories/uploads", [source["image_url"]])
-                    response = api.post("categories/", json={"title": source["title"], "photo_id": photo_id})
+                    response = api.post("categories/", json={"title": source["title"], "image_path": photo_id})
                     response.raise_for_status()
                     category_id = response.json()["id"]
                     category_ids[title] = [category_id]
