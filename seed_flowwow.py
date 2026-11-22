@@ -17,7 +17,7 @@ PRODUCT_FILES = ("page2.json", "page3.json", "page4.json")  # Можно ука�
 PRODUCT_LIMIT = 20  # Первые 20 подходящих товаров. None — все товары из выбранных файлов.
 PHOTOS_PER_PRODUCT = 5  # От 0 до 5. Обложка новой категории загружается отдельно.
 API_URL = "http://127.0.0.1:8000"
-ACCESS_TOKEN = ""
+ACCESS_TOKEN = input("Вставь access token для импорта: ").strip()
 APPLY = True  # False — предпросмотр, True — импорт.
 
 MAX_FILES = 5

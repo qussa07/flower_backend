@@ -38,7 +38,8 @@ def get_order(order_id: UUID, user: User = Depends(utils.get_current_user), serv
 def pay_order(order_id: UUID, user: User = Depends(utils.get_current_user),
               service: OrdersService = Depends(get_user_service)):
     return service.pay(order_id, user)"""
-"""
+
+    
 @router.post("/webhook")
 async def webhook(request: Request, notification: PaymentNotification,service: OrdersService = Depends(get_user_service)):
     result = await run_in_threadpool(service.webhook, 
@@ -47,4 +48,4 @@ async def webhook(request: Request, notification: PaymentNotification,service: O
     if result.get("status") == "succeeded":
         await manager.broadcast({"type": "orders.updated"})
 
-    return {"status": "ok"} """
+    return {"status": "ok"}
