@@ -10,6 +10,7 @@ class PaginationMeta(BaseModel):
     currentPage: int
     lastPage: int
     total: int
+    itemsCount: int
     isNext: bool
     isPrev: bool
 
@@ -38,6 +39,7 @@ def paginate(query, page: int, per_page: int):
             "currentPage": page,
             "lastPage": last_page,
             "total": total,
+            "itemsCount": len(items),
             "isNext": page < last_page,
             "isPrev": page > 1,
         },
