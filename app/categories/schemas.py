@@ -18,5 +18,5 @@ class CategoryResponse(BaseModel):
 
     id: UUID
     title: str
-    image_url: str | None
+    image_path: str | None
     count_products: int
