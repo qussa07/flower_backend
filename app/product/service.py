@@ -11,6 +11,7 @@ from .storage import (
     commit_tmp,
     save_tmp,
     ALLOWED_TYPES,
+    ID_RE,
     MAX_SIZE,
     MAX_FILES,
     PRODUCT_DIR,
@@ -126,7 +127,7 @@ class ProductService():
         return query.order_by(ordering[sort], Product.id)
 
     def get_products(self, page: int, perPage: int, search=None, 
-                     min_price=None, max_price=None, category_id: UUID | None = None, sort=None, 
+                     min_price=None, max_price=None, category_id: list[UUID] | None = None, sort=None, 
                      is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
         tokens = (search or "").split()[:MAX_TOKENS]
         if tokens:
@@ -141,7 +142,7 @@ class ProductService():
         if is_not_show:
             query = query.filter(Product.is_show.is_(False))
         if category_id is not None:
-            query = query.filter(Product.category_id == category_id)
+            query = query.filter(Product.category_id.in_(category_id))
         if sort:
             query = self._sort_products(query, sort)
         else:
@@ -238,7 +239,7 @@ class ProductService():
             query = query.filter(Product.is_show.is_(False)) 
 
         if category_id is not None:
-            query = query.filter(Product.category_id == category_id)
+            query = query.filter(Product.category_id.in_(category_id))
         for tok in tokens:
             query = query.filter(self._token_condition(tok, fuzzy))
 
@@ -303,39 +304,34 @@ class ProductService():
             if category is None:
                 raise HTTPException(404, "Категория не найдена")
 
-        replace_images = "image_paths" in form.model_fields_set
-
-        if replace_images and form.image_urls is not None:
-            raise HTTPException(
-                400,
-                "Передайте либо image_paths для замены, "
-                "либо image_urls для перестановки",
-            )
-
+        requested_images = form.image_paths
+        replace_images = requested_images is not None
         old_images = list(product.image_paths or [])
         images = old_images.copy()
-
-        if form.image_urls is not None:
-            if sorted(form.image_urls) != list(range(len(images))):
-                raise HTTPException(400, "Неверный порядок фотографий")
-
-            images = [images[index] for index in form.image_urls]
-
         new_photo_paths = []
 
         try:
-            if replace_images:
-                try:
-                    new_photo_paths = commit_tmp(
-                    form.image_paths,
-                    product_id=product.id,)
-                except FileNotFoundError:
-                    raise HTTPException(
-                        400,
-                        "Фото не найдено. Загрузите его повторно",
-                    ) from None
+            if requested_images is not None:
+                upload_ids = []
+                for value in requested_images:
+                    if value in old_images:
+                        continue
+                    if not ID_RE.fullmatch(value):
+                        raise HTTPException(
+                            400, "Фото не принадлежит товару или ID загрузки неверный"
+                        )
+                    upload_ids.append(value)
 
-                images = new_photo_paths
+                if upload_ids:
+                    try:
+                        new_photo_paths = commit_tmp(upload_ids, product_id=product.id)
+                    except FileNotFoundError:
+                        raise HTTPException(
+                            400, "Фото не найдено. Загрузите его повторно"
+                        ) from None
+
+                uploaded = dict(zip(upload_ids, new_photo_paths))
+                images = [uploaded.get(value, value) for value in requested_images]
 
             product.image_paths = images
             product.category_id = form.category_id

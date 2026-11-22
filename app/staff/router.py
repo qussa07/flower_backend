@@ -64,7 +64,7 @@ def get_products(page: int = Query(1, ge=1),
     min_price: Decimal | None = Query(None, ge=0),
     max_price: Decimal | None = Query(None, ge=0),
     sort: ProductSort | None = None,
-    category_id: UUID | None = None,
+    category_id: list[UUID] | None = Query(default=None),
     is_ready: bool = False,
     is_not_show: bool = False,
     service: StaffOrdersService = Depends(get_staff_service)):

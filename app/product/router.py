@@ -36,7 +36,7 @@ def get_products(
     min_price: Decimal | None = Query(None, ge=0),
     max_price: Decimal | None = Query(None, ge=0),
     sort: ProductSort | None = None,
-    category_id: str | None = None,
+    category_id: list[UUID] | None = Query(default=None),
     service: ProductService = Depends(get_user_service),
 ):
     return service.get_products(page=page, perPage=perPage, search=search, min_price=min_price, max_price=max_price, category_id=category_id, sort=sort,  public_only=True)

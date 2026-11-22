@@ -11,7 +11,7 @@ class CompositionItem(BaseModel):
     quantity: int = Field(gt=0, le=2147483647)
 
 class ProductModels(BaseModel):
-    category_id: str | None = None
+    category_id: UUID | None = None
     title: str = Field(min_length=5, max_length=50)
     price: Decimal = Field(
         gt=0,
@@ -27,7 +27,7 @@ class ProductModels(BaseModel):
 
 
 class ProductUpdate(ProductModels):
-    image_urls: list[int] | None = None
+    image_paths: list[str] | None =  Field(default=None, max_length=5)
 
 
 class ProductSearchParams(BaseModel):
