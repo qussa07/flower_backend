@@ -37,7 +37,7 @@ class UserService:
             query = query.filter(
                 or_(
                     User.name.ilike(f"%{search}%"),
-                    User.phone_number.ilike(f"%{search}%"),
+                    User.email.ilike(f"%{search}%"),
                 )
             )
 

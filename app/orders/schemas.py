@@ -54,6 +54,9 @@ class OrdersModels(BaseModel):
 
     @model_validator(mode="after")
     def validate_order(self):
+        today = datetime.now(ZoneInfo("Europe/Moscow")).date()
+        if self.delivery_date < today:
+            raise PydanticCustomError("request_value_invalid","Дата заказа не может быть в прошлом",)
         if self.delivery_time_start >= self.delivery_time_end:
             raise PydanticCustomError("request_value_invalid", "Время начала доставки должно быть раньше окончания")
         if self.delivery_method == DeliveryMethod.DELIVERY and not self.shipping_address:

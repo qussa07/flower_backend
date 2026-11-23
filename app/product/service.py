@@ -296,6 +296,8 @@ class ProductService():
             return result
 
         return self._run(fuzzy=True, **options)
+
+    
     def update_product(self, uuid: UUID, form: ProductUpdate):
         product = self.get_product(uuid)
 
@@ -332,6 +334,9 @@ class ProductService():
 
                 uploaded = dict(zip(upload_ids, new_photo_paths))
                 images = [uploaded.get(value, value) for value in requested_images]
+
+            if form.count < product.reserved_count:
+                raise HTTPException(409, f"Остаток не может быть меньше резерва: {product.reserved_count}")
 
             product.image_paths = images
             product.category_id = form.category_id

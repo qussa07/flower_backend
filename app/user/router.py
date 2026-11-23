@@ -22,12 +22,12 @@ def update_profile(
     db: Session = Depends(getdb),
 ):
     changes = form.model_dump(exclude_unset=True)
-    if "phone_number" in changes:
+    if "email" in changes:
         existing = db.query(User).filter(
-            User.phone_number == changes["phone_number"], User.id != user.id
+            User.email == changes["email"], User.id != user.id
         ).first()
         if existing:
-            raise HTTPException(status_code=409, detail="Этот номер телефона уже используется")
+            raise HTTPException(status_code=409, detail="Этот email уже используется")
 
     for field, value in changes.items():
         if field == "password":
@@ -38,7 +38,7 @@ def update_profile(
     except IntegrityError as exc:
         db.rollback()
         if getattr(exc.orig, "sqlstate", None) == "23505":
-            raise HTTPException(status_code=409, detail="Этот номер телефона уже используется") from exc
+            raise HTTPException(status_code=409, detail="Этот email уже используется") from exc
         raise
     db.refresh(user)
     return jsonable_encoder(user, exclude={"password"})

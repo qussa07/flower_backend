@@ -39,6 +39,6 @@ class UserResponse(BaseModel):
 
     id: UUID
     name: str
-    phone_number: str
+    email: str
     role: UserRole
     created_at: datetime

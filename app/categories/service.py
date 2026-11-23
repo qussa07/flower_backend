@@ -61,7 +61,7 @@ class CategoriesService:
     self.db.query(
         Categories.id,
         Categories.title,
-        Categories.image_url.label("image_path"),
+        Categories.image_path.label("image_path"),
         func.count(Product.id).label("count_products"),).outerjoin(Product, Product.category_id
                                                                     == Categories.id))
 

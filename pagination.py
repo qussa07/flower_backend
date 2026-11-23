@@ -6,7 +6,6 @@ T = TypeVar("T")
 
 
 class PaginationMeta(BaseModel):
-    perPage: int
     currentPage: int
     lastPage: int
     total: int
