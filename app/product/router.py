@@ -36,10 +36,14 @@ def get_products(
     min_price: Decimal | None = Query(None, ge=0),
     max_price: Decimal | None = Query(None, ge=0),
     sort: ProductSort | None = None,
-    category_ids: list[UUID] | None = Query(default=None),
+    category_ids: str | None = Query(default=None),
     service: ProductService = Depends(get_user_service),
 ):
-    return service.get_products(page=page, perPage=perPage, search=search, min_price=min_price, max_price=max_price, category_ids=category_ids, sort=sort,  public_only=True)
+    try:
+        ids = [UUID(x.strip()) for x in category_ids.split(",")] if category_ids else None
+    except ValueError:
+        raise HTTPException(422, "Некорректный ID категории")
+    return service.get_products(page=page, perPage=perPage, search=search, min_price=min_price, max_price=max_price, category_ids=ids, sort=sort,  public_only=True)
 
 @router.get("/{product_id}")
 def get_product(product_id: UUID, service: ProductService = Depends(get_user_service)):
