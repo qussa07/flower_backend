@@ -38,7 +38,7 @@ class CategoriesService:
                 image_path = commit_tmp([form.image_path])[0]
             except FileNotFoundError:
                 raise HTTPException(400, "Фото не найдено. Загрузите его повторно")
-        category = Categories(title=form.title, image_url=image_path)
+        category = Categories(title=form.title, image_path=image_path)
         try:
             self.db.add(category)
             self.db.commit()
@@ -73,7 +73,7 @@ class CategoriesService:
         query = query.group_by(
                         Categories.id,
                         Categories.title,
-                        Categories.image_url,).order_by(ordering[sort], Categories.id)
+                        Categories.image_path,).order_by(ordering[sort], Categories.id)
 
         return pagination.paginate(query, page, perPage)
         
@@ -90,7 +90,7 @@ class CategoriesService:
             path = photo_path(image_url)
         except ValueError:
             return
-        if self.db.query(Categories.id).filter(Categories.image_url == image_url).first():
+        if self.db.query(Categories.id).filter(Categories.image_path == image_url).first():
             return
         if self.db.query(Product.id).filter(Product.image_paths.contains([image_url])).first():
             return
@@ -109,7 +109,7 @@ class CategoriesService:
         if "title" in fields and form.title is None:
             raise HTTPException(422, "Укажите название категории")
         
-        old_image = category.image_url
+        old_image = category.image_path
         new_photo = None
         if form.image_path is not None:
             try:
@@ -120,7 +120,7 @@ class CategoriesService:
         if "title" in fields:
             category.title = form.title
         if new_photo is not None:
-            category.image_url = new_photo
+            category.image_path = new_photo
 
         try:
             self.db.commit()
@@ -130,7 +130,7 @@ class CategoriesService:
                 rollback_photos([new_photo])
             raise
         self.db.refresh(category)
-        if old_image != category.image_url:
+        if old_image != category.image_path:
             self._delete_unused_image(old_image)
         return category
 
@@ -138,7 +138,7 @@ class CategoriesService:
         category = self.get_category(category_id)
         if self.db.query(Product.id).filter(Product.category_id == category_id).first():
             raise HTTPException(409, "В категории есть товары")
-        old_image = category.image_url
+        old_image = category.image_path
         try:
             self.db.delete(category)
             self.db.commit()

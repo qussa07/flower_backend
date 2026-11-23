@@ -182,7 +182,7 @@ class ProductService():
         ).first()
 
         used_by_category = self.db.query(Categories.id).filter(
-            Categories.image_url == image_url
+            Categories.image_path == image_url
         ).first()
 
         if used_by_product or used_by_category:
@@ -385,7 +385,7 @@ class ProductService():
             used_by_product = self.db.query(Product.id).filter(
                 Product.id != product_id, Product.image_paths.contains([photo])
             ).first()
-            used_by_category = self.db.query(Categories.id).filter(Categories.image_url == photo).first()
+            used_by_category = self.db.query(Categories.id).filter(Categories.image_path == photo).first()
             if not used_by_product and not used_by_category:
                 photos_to_delete.append(path)
 
