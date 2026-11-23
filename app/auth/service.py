@@ -153,7 +153,7 @@ class AuthService:
         data = utils.verify_refresh_token(refresh_token)
         if not data:
             raise HTTPException(status_code=401, detail="Недействительный токен")
-        
+
         subject = data.get("sub")
         if not isinstance(subject, str):
             raise HTTPException(status_code=401, detail="Недействительный токен")
@@ -161,6 +161,9 @@ class AuthService:
             user_id = UUID(subject)
         except ValueError:
             raise HTTPException(status_code=401, detail="Недействительный токен") from None
+
+        if self.db.get(User, user_id) is None:
+            raise HTTPException(status_code=401, detail="Недействительный токен")
         
         access = utils.create_access_token(user_id)
         refresh = utils.create_refresh_token(user_id)
