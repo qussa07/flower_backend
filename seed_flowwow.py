@@ -78,10 +78,10 @@ def load_catalog(directory, categories_file, product_files, product_limit, photo
             category = categories.setdefault(category_id, {
                 "id": category_id,
                 "title": category_names[category_key][:20],
-                "image_url": "",
+                "image_path": "",
             })
-            if not category["image_url"] and images:
-                category["image_url"] = images[0]
+            if not category["image_path"] and images:
+                category["image_path"] = images[0]
 
             count = item["stock"]
             products[product_id] = {
@@ -181,9 +181,9 @@ def import_catalog(categories, products, compounds, api_url, token, state_path):
                 if matches:
                     category_id = matches[0]
                 else:
-                    if not source["image_url"]:
+                    if not source["image_path"]:
                         raise ValueError(f"No cover image for category {source['title']!r}")
-                    photo_id, = upload_photos(api, downloads, "categories/uploads", [source["image_url"]])
+                    photo_id, = upload_photos(api, downloads, "categories/uploads", [source["image_path"]])
                     response = api.post("categories/", json={"title": source["title"], "image_path": photo_id})
                     response.raise_for_status()
                     category_id = response.json()["id"]

@@ -82,12 +82,12 @@ class OrdersService():
                # Выполняем INSERT и получаем созданный PostgreSQL UUID.
                self.db.flush()
 
-               self.db.add(
+               """self.db.add(
                     OrderExpirationOutbox(
                          order_id=order.id,
                          run_at=order.expireAt,
                     )
-               )
+               )"""
 
                # Заказ, резерв и задание фиксируются вместе.
                self.db.commit()
@@ -184,7 +184,8 @@ class OrdersService():
                          f"Товар недоступен: {product.title}",
                     )
 
-               available = product.count - product.reserved_count
+               # available = product.count - product.reserved_count
+               available = product.count
 
                if available < item.quantity:
                     raise HTTPException(
@@ -199,7 +200,7 @@ class OrdersService():
           for item in items:
                product = products_by_id[item.product_id]
 
-               product.reserved_count += item.quantity
+               # product.reserved_count += item.quantity
 
                order.items.append(
                     OrderItems(
@@ -213,7 +214,7 @@ class OrdersService():
                total_amount += product.price * item.quantity
 
           order.total_amount = total_amount
-          order.stock_reserved = True
+          # order.stock_reserved = True
 
      """"def reserve_order_items(self, order: Orders, items):
            # Зарезервировать товары для нового заказа без commit().

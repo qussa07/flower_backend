@@ -127,11 +127,11 @@ class ProductService():
         return query.order_by(ordering[sort], Product.id)
 
     def get_products(self, page: int, perPage: int, search=None, 
-                     min_price=None, max_price=None, category_id: list[UUID] | None = None, sort=None, 
+                     min_price=None, max_price=None, category_ids: list[UUID] | None = None, sort=None, 
                      is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
         tokens = (search or "").split()[:MAX_TOKENS]
         if tokens:
-            result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_id=category_id, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
+            result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_ids=category_ids, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
             return result
         query = self._price_filter( 
         self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
@@ -141,8 +141,8 @@ class ProductService():
 
         if is_not_show:
             query = query.filter(Product.is_show.is_(False))
-        if category_id is not None:
-            query = query.filter(Product.category_id.in_(category_id))
+        if category_ids is not None:
+            query = query.filter(Product.category_id.in_(category_ids))
         if sort:
             query = self._sort_products(query, sort)
         else:
@@ -227,7 +227,7 @@ class ProductService():
             )
         return or_(*conds)
 
-    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_id=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
         query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
         query = self._public_filter(query, public_only)
         
@@ -238,8 +238,8 @@ class ProductService():
         if is_not_show == True:
             query = query.filter(Product.is_show.is_(False)) 
 
-        if category_id is not None:
-            query = query.filter(Product.category_id.in_(category_id))
+        if category_ids is not None:
+            query = query.filter(Product.category_id.in_(category_ids))
         for tok in tokens:
             query = query.filter(self._token_condition(tok, fuzzy))
 
@@ -263,7 +263,7 @@ class ProductService():
         if public_only:
             query = query.filter(
                 Product.is_show.is_(True),
-                Product.count > Product.reserved_count,
+                # Product.count > Product.reserved_count,
             )
         return query
 
@@ -335,8 +335,8 @@ class ProductService():
                 uploaded = dict(zip(upload_ids, new_photo_paths))
                 images = [uploaded.get(value, value) for value in requested_images]
 
-            if form.count < product.reserved_count:
-                raise HTTPException(409, f"Остаток не может быть меньше резерва: {product.reserved_count}")
+            """if form.count < product.reserved_count:
+                raise HTTPException(409, f"Остаток не может быть меньше резерва: {product.reserved_count}")"""
 
             product.image_paths = images
             product.category_id = form.category_id
@@ -344,7 +344,7 @@ class ProductService():
             product.price = form.price
             product.description = form.description
             product.count = form.count
-            product.is_show = form.is_show
+            product.is_show = form.is_show and form.count > 0
             product.is_show_case = form.is_show_case
 
             product.compounds = [
