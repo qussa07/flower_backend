@@ -161,8 +161,8 @@ class AuthService:
             user_id = UUID(subject)
         except ValueError:
             raise HTTPException(status_code=401, detail="Недействительный токен") from None
-
-        if self.db.get(User, user_id) is None:
+        user = self.db.get(User, user_id)
+        if user is None:
             raise HTTPException(status_code=401, detail="Недействительный токен")
         
         access = utils.create_access_token(user_id)
@@ -171,7 +171,7 @@ class AuthService:
         self._set_cookie(response, refresh)
         
         return {"access_token": access,
-                "user_id": str(user_id)}
+                "role": user.role,}
 
     def logout(self, response: Response, refresh_token: str | None = Cookie(default=None, alias="refresh_token")):
         if not refresh_token:
