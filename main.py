@@ -13,7 +13,7 @@ from app.user.models import *
 from app.product.models import *
 from app.orders.models import *
 from fastapi.staticfiles import StaticFiles
-from app.product.storage import PRODUCT_DIR, CATEGORY_DIR
+from app.product.storage import PRODUCT_DIR, CATEGORY_DIR, TMP_DIR
 from app.categories.models import Categories
 from app.errors import validation_error_handler
 from database import create_tables
@@ -45,10 +45,16 @@ app.mount(
     name="category_photos",
 )
 
+
+app.mount(
+    "/files/tmp",
+    StaticFiles(directory=TMP_DIR),
+    name="tmp_files",
+)
+
 app.include_router(auth_router)
 app.include_router(profile_router)
 app.include_router(product_router)
 app.include_router(orders_router)
 app.include_router(categories_router)
-
 app.include_router(staff_router)

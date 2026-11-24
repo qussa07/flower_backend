@@ -32,8 +32,7 @@ for directory in (TMP_DIR, PRODUCT_DIR, CATEGORY_DIR, LEGACY_DIR):
 def save_tmp(content: bytes, content_type: str) -> str:
     filename = f"{uuid.uuid4().hex}{ALLOWED_TYPES[content_type]}"
     (TMP_DIR / filename).write_bytes(content)
-    return filename
-
+    return  f"/files/tmp/{filename}"
 
 def photo_path(image_url: str) -> Path:
     """Получить локальный путь по URL фотографии."""
@@ -45,9 +44,9 @@ def photo_path(image_url: str) -> Path:
         root = CATEGORY_DIR
         relative = image_url[len("/files/category/"):]
 
-    elif image_url.startswith("/files/"):
-        root = LEGACY_DIR
-        relative = image_url[len("/files/"):]
+    elif image_url.startswith("/files/tmp"):
+        root = TMP_DIR
+        relative = image_url[len("/files/tmp/"):]
 
     else:
         raise ValueError("Некорректная ссылка на фотографию")

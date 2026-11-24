@@ -170,7 +170,8 @@ class AuthService:
         
         self._set_cookie(response, refresh)
         
-        return {"access_token": access}
+        return {"access_token": access,
+                "user_id": str(user_id)}
 
     def logout(self, response: Response, refresh_token: str | None = Cookie(default=None, alias="refresh_token")):
         if not refresh_token:
