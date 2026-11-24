@@ -57,8 +57,8 @@ class StaffOrdersService:
 
 
     def get_products(self, page: int, perPage: int, search=None, 
-                         min_price=None, max_price=None, category_id: list[UUID] | None = None, sort=None, is_ready: bool = False, is_not_show: bool = False):
+                         min_price=None, max_price=None, category_ids: list[UUID] | None = None, sort=None, is_ready: bool = False, is_not_show: bool = False):
         return ProductService(self.db).get_products(page=page, perPage=perPage, 
-                                                    search=search, min_price=min_price, max_price=max_price, category_id=category_id, sort=sort, is_ready=is_ready, is_not_show=is_not_show)
+                                                    search=search, min_price=min_price, max_price=max_price, category_ids=category_ids, sort=sort, is_ready=is_ready, is_not_show=is_not_show)
     def get_product(self, product_id: UUID):
         return ProductService(self.db).get_product(product_id)

@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Annotated, Literal
 from uuid import UUID
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, StringConstraints, model_validator
 from pydantic_core import PydanticCustomError
 
 
@@ -19,7 +19,7 @@ class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=2, max_length=30)
-    phone_number: str | None = Field(default=None, pattern=r"^\+7\d{10}$")
+    email: EmailStr | None = Field(default=None, max_length=254)
 
     password: Annotated[str, StringConstraints(strip_whitespace=False)] | None = Field(
         default=None, min_length=8, max_length=25

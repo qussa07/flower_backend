@@ -331,7 +331,9 @@ class ProductService():
                 for value in requested_images:
                     if value in old_images:
                         continue
-                    if not ID_RE.fullmatch(value):
+
+                    upload_id = value.removeprefix("/files/tmp/")
+                    if not ID_RE.fullmatch(upload_id):
                         raise HTTPException(
                             400, "Фото не принадлежит товару или ID загрузки неверный"
                         )

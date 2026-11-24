@@ -89,11 +89,7 @@ def rollback_photos(image_urls: list[str]) -> None:
             remove_empty_product_dir(src.parent)
 
 
-def commit_tmp(
-    upload_ids: list[str],
-    *,
-    product_id: UUID | None = None,
-) -> list[str]:
+def commit_tmp(upload_ids: list[str],*,product_id: UUID | None = None,) -> list[str]:
     if product_id is None:
         target_dir = CATEGORY_DIR
         url_prefix = "/files/category"
@@ -106,6 +102,7 @@ def commit_tmp(
 
     try:
         for upload_id in upload_ids:
+            upload_id = upload_id.removeprefix("/files/tmp/")
             if not ID_RE.fullmatch(upload_id):
                 raise ValueError("Некорректный идентификатор загруженного файла")
 
