@@ -50,6 +50,13 @@ def get_products(
 def get_product(product_id: UUID, service: ProductService = Depends(get_user_service)):
    return service.get_product(product_id, public_only=True)
 
+@router.delete("/uploads", status_code=204, dependencies=[Depends(utils.require_staff)])
+def delete_image(
+    image_path: str,
+    service: ProductService = Depends(get_user_service),
+) -> None:
+    service.delete_image(image_path)
+
 @router.put("/{product_id}", dependencies=[Depends(utils.require_staff)])
 def update_product(product_id: UUID, form: ProductUpdate, service: ProductService = Depends(get_user_service)):
     return service.update_product(product_id, form)

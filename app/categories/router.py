@@ -46,6 +46,13 @@ def get_categories(
 def get_category(category_id: UUID, service: CategoriesService = Depends(get_categories_service)):
     return service.get_category(category_id)
 
+@router.delete("/uploads", status_code=204, dependencies=[Depends(require_staff)])
+def delete_image(
+    image_path: str,
+    service: CategoriesService = Depends(get_categories_service),
+) -> None:
+    service.delete_image(image_path)
+
 
 @router.patch("/{category_id}", dependencies=[Depends(require_staff)])
 def update_category(category_id: UUID, form: CategoryUpdate, service: CategoriesService = Depends(get_categories_service)):

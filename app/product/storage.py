@@ -44,7 +44,7 @@ def photo_path(image_url: str) -> Path:
         root = CATEGORY_DIR
         relative = image_url[len("/files/category/"):]
 
-    elif image_url.startswith("/files/tmp"):
+    elif image_url.startswith("/files/tmp/"):
         root = TMP_DIR
         relative = image_url[len("/files/tmp/"):]
 
@@ -160,3 +160,24 @@ def cleanup_tmp() -> None:
             logging.getLogger(__name__).exception(
                 "Не удалось удалить временный файл: %s", file
             )
+
+def unlink_photo(image_url: str) -> None:
+    path = photo_path(image_url)
+    path.unlink(missing_ok=True)
+    remove_empty_product_dir(path.parent)
+
+
+def delete_photo(image_url: str | None) -> None:
+    if not image_url:
+        return
+
+    try:
+        unlink_photo(image_url)
+    except ValueError:
+        return
+    except OSError:
+        logging.getLogger(__name__).exception(
+            "Не удалось удалить фото %s", image_url
+        )
+
+

@@ -15,6 +15,7 @@ from app.product.storage import (
     photo_path,
     rollback_photos,
     remove_empty_product_dir,
+    delete_photo,
 )
 from .models import Categories
 from .schemas import CategoryCreate, CategoryUpdate, CategorySort
@@ -29,7 +30,7 @@ class CategoriesService:
     def upload_file(self, photos: list[UploadFile], redis):
         if len(photos) != 1:
             raise HTTPException(400, "Загрузите ровно одно изображение")
-        return ProductService(self.db).upload_file(photos, redis)
+        return {"upload_id": ProductService(self.db).upload_file(photos, redis)["upload_ids"][0]}
 
     def create_category(self, form: CategoryCreate):
         image_path = None
@@ -83,25 +84,25 @@ class CategoriesService:
             raise HTTPException(404, "Категория не найдена")
         return category
 
-    def _delete_unused_image(self, image_url: str | None):
+    def _delete_unused_image(self, image_url: str | None) -> None:
         if not image_url:
             return
-        try:
-            path = photo_path(image_url)
-        except ValueError:
+
+        if self.db.query(Categories.id).filter(
+            Categories.image_path == image_url
+        ).first():
             return
-        if self.db.query(Categories.id).filter(Categories.image_path == image_url).first():
+
+        if self.db.query(Product.id).filter(
+            Product.image_paths.contains([image_url])
+        ).first():
             return
-        if self.db.query(Product.id).filter(Product.image_paths.contains([image_url])).first():
-            return
-        try:
-            path.unlink(missing_ok=True)
-            remove_empty_product_dir(path.parent)
-        except OSError:
-            logging.getLogger(__name__).exception(
-                "Could not delete category photo: %s",
-                path,
-            )
+
+        delete_photo(image_url)
+
+
+    def delete_image(self, image_url: str) -> None:
+        ProductService(self.db).delete_image(image_url)
 
     def update_category(self, category_id: UUID, form: CategoryUpdate):
         category = self.get_category(category_id)

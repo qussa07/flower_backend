@@ -5,11 +5,12 @@ from ..user.models import User
 from fastapi import HTTPException, UploadFile
 from .schemas import ProductModels, ProductUpdate
 from .models import Product, CompoundProduct
-from pathlib import Path
+import re
 from uuid import UUID
 from .storage import (
     commit_tmp,
     save_tmp,
+    delete_photo,
     ALLOWED_TYPES,
     ID_RE,
     MAX_SIZE,
@@ -28,6 +29,12 @@ import logging
 from sqlalchemy import exists, func, or_
 
 MAX_TOKENS = 8
+
+PHOTO_URL = re.compile(
+    r"/files/(?:tmp|category|product/"
+    r"[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12})/"
+    r"[0-9a-f]{32}\.(?:jpg|png|webp)"
+)
 
 
 class ProductService():
@@ -171,31 +178,37 @@ class ProductService():
             ids.append(id)
         return {"upload_ids": ids}
 
-    def _delete_unused_image(self, image_url: str) -> None:
-        try:
-            path = photo_path(image_url)
-        except ValueError:
-            return
-
+    def _image_is_used(self, image_url: str) -> bool:
         used_by_product = self.db.query(Product.id).filter(
             Product.image_paths.contains([image_url])
         ).first()
+        if used_by_product:
+            return True
 
-        used_by_category = self.db.query(Categories.id).filter(
+        return self.db.query(Categories.id).filter(
             Categories.image_path == image_url
-        ).first()
+        ).first() is not None
 
-        if used_by_product or used_by_category:
-            return
+    def _delete_unused_image(self, image_url: str) -> None:
+        if not self._image_is_used(image_url):
+            delete_photo(image_url)
+
+    def delete_image(self, image_url: str) -> None:
+        if not PHOTO_URL.fullmatch(image_url):
+            raise HTTPException(422, "Некорректная ссылка на фото")
+
+        if self._image_is_used(image_url):
+            raise HTTPException(409, "Фото ещё используется товаром или категорией")
 
         try:
-            path.unlink(missing_ok=True)
-            remove_empty_product_dir(path.parent)
-        except OSError:
+            unlink_photo(image_url)
+        except ValueError as exc:
+            raise HTTPException(422, "Некорректный путь к фото") from exc
+        except OSError as exc:
             logging.getLogger(__name__).exception(
-                "Could not delete unused photo: %s",
-                path,
+                "Не удалось удалить фото %s", image_url
             )
+            raise HTTPException(500, "Не удалось удалить фото") from exc
 
     def _token_condition(self, token: str, fuzzy: bool):
         """Слово должно найтись где-то: в букете или в его составе."""
