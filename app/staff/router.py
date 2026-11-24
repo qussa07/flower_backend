@@ -56,6 +56,10 @@ async def complete_order(
 
     return order
 
+@router.get("/stats", dependencies=[Depends(require_staff)])
+def get_stats(service: StaffOrdersService = Depends(get_staff_service)):
+    return service.stats()
+
 @router.get("/products")
 def get_products(page: int = Query(1, ge=1),
     user: User = Depends(require_staff),

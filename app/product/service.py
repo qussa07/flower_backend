@@ -11,7 +11,7 @@ from .storage import (
     commit_tmp,
     save_tmp,
     delete_photo,
-    ALLOWED_TYPES,
+    unlink_photo,
     ID_RE,
     MAX_SIZE,
     MAX_FILES,

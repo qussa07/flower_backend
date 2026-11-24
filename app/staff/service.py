@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import HTTPException
 from sqlalchemy.orm import Session, selectinload
 
+from app.categories.models import Categories
 from app.orders.models import Orders
 from app.orders.schemas import PaymentStatus
 from app.user.models import User
@@ -43,6 +44,16 @@ class StaffOrdersService:
             order.completion_status = CompletionStatusEnum.COMPLETED
             self.db.commit()
         return order
+
+    def stats(self):
+        total_users = self.db.query(User).count()
+        total_products = self.db.query(Product).count()
+        total_categories = self.db.query(Categories).count()
+        return {
+            "total_users": total_users,
+            "total_products": total_products,
+            "total_categories": total_categories,
+        }
 
 
     def get_products(self, page: int, perPage: int, search=None, 
