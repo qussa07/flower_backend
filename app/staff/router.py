@@ -22,7 +22,7 @@ def get_staff_service(db: Session = Depends(getdb)):
     return StaffOrdersService(db)
 
 
-@router.get("", response_model=list[StaffOrderResponse])
+@router.get("/orders", response_model=list[StaffOrderResponse])
 def get_orders(
     user: User = Depends(require_staff),
     service: StaffOrdersService = Depends(get_staff_service),
@@ -39,7 +39,7 @@ def get_users(page: int= Query(1, ge=1),
     return service.get_users(page, perPage, search, role, sort)
 
 
-@router.post("/{order_id}/complete", response_model=StaffOrderResponse)
+@router.post("/orders/{order_id}/complete", response_model=StaffOrderResponse)
 async def complete_order(
     order_id: UUID,
     user: User = Depends(require_staff),

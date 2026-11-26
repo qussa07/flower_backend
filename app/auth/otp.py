@@ -23,6 +23,22 @@ def generate_code() -> str:
 def is_on_cooldown(email: str) -> bool:
     return bool(get_redis().exists(f"otp:cooldown:{email.lower()}"))
 
+def replace_code(registration_id: UUID, code: str) -> bool:
+    key = _session_key(registration_id)
+
+    with get_redis().pipeline() as pipe:
+        while True:
+            try:
+                pipe.watch(key)
+                if not pipe.exists(key):
+                    return False
+
+                pipe.multi()
+                pipe.hset(key, "code", code)
+                pipe.execute()
+                return True
+            except WatchError:
+                continue
 
 def get_registration_email(registration_id: UUID) -> str | None:
     return get_redis().hget(_session_key(registration_id), "email")

@@ -2,13 +2,14 @@ from uuid import UUID
 
 from datetime import datetime, timezone
 
-import secrets
 from hashlib import sha256
 
 from sqlalchemy import func, update, text
 
+from database import get_redis
+
 from .mail import send_verification_code
-from .otp import check_code, delete_code, generate_code, is_on_cooldown, issue_code, get_registration_email
+from .otp import SEND_COOLDOWN, check_code, delete_code, generate_code, is_on_cooldown, issue_code, get_registration_email, replace_code
 from .schemas import LoginUserModels, RegUsersModels, VerifyEmailRequest
 
 from sqlalchemy import func
@@ -117,20 +118,20 @@ class AuthService:
         if user is None or user.email_verified_at is not None:
             raise HTTPException(400, "Регистрация больше не ожидает подтверждения")
 
-        issued = issue_code(email, generate_code())
-        if issued is None:
+        cooldown_key = f"otp:cooldown:{email.lower()}"
+        if not get_redis().set(cooldown_key, "1", nx=True, ex=SEND_COOLDOWN):
             raise HTTPException(429, "Подожди перед повторной отправкой")
 
-        new_registration_id, code = issued
-
+        code = generate_code()
         try:
             send_verification_code(email, code)
         except OSError as exc:
-            delete_code(new_registration_id)
             raise HTTPException(503, "Не удалось отправить письмо") from exc
 
-        delete_code(registration_id)
-        return {"registration_id": str(new_registration_id)}
+        if not replace_code(registration_id, code):
+            raise HTTPException(400, "Регистрация не найдена или истекла")
+
+        return {"registration_id": str(registration_id)}
 
     def verify_email(self, form: VerifyEmailRequest):
         email = check_code(form.registration_id, form.code)
