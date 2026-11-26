@@ -18,7 +18,7 @@ class CategoryCreate(BaseModel):
 
 class CategoryUpdate(BaseModel):
     title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=20)] | None = None
-    image_path: str = Field(pattern=r"^[0-9a-f]{32}(\.(jpg|png|webp))?$")
+    image_path: str | None = Field(default=None,pattern=r"^(?:/files/(?:tmp|category)/)?[0-9a-f]{32}(\.(jpg|png|webp))?$",)
     
     @field_validator("image_path", mode="before")
     @classmethod

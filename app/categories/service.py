@@ -48,8 +48,7 @@ class CategoriesService:
             if image_path:
                 rollback_photos([image_path])
             raise
-        self.db.refresh(category)
-        return category
+        return {"ok": True}
 
     def get_categories(self, page: int, perPage: int, search: str = "", sort: CategorySort = "new"):
         ordering = {
@@ -112,7 +111,10 @@ class CategoriesService:
         
         old_image = category.image_path
         new_photo = None
-        if form.image_path is not None:
+        
+        if form.image_path is not None and form.image_path != old_image:
+            if form.image_path.startswith("/files/category/"):
+                raise HTTPException(400, "Фото не принадлежит этой категории")
             try:
                 new_photo = commit_tmp([form.image_path])[0]
             except FileNotFoundError:
@@ -133,7 +135,7 @@ class CategoriesService:
         self.db.refresh(category)
         if old_image != category.image_path:
             self._delete_unused_image(old_image)
-        return category
+        return {"ok": True}
 
     def delete_category(self, category_id: UUID):
         category = self.get_category(category_id)

@@ -22,10 +22,10 @@ def get_categories_service(db: Session = Depends(getdb)):
 @router.post("/", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_staff)])
 def create_category(form: CategoryCreate, service: CategoriesService = Depends(get_categories_service)):
     return service.create_category(form)
-
+"""
 @router.post("/uploads", dependencies=[Depends(require_staff)])
 def upload_photo(photo: list[UploadFile] = File(...), redis = Depends(get_redis), service: CategoriesService = Depends(get_categories_service)):
-    return service.upload_file(photo, redis)
+    return service.upload_file(photo, redis)"""
 
 @router.get("/", response_model=pagination.Page[CategoryResponse])
 def get_categories(
@@ -46,15 +46,15 @@ def get_categories(
 def get_category(category_id: UUID, service: CategoriesService = Depends(get_categories_service)):
     return service.get_category(category_id)
 
-@router.delete("/uploads", status_code=204, dependencies=[Depends(require_staff)])
+"""@router.delete("/uploads", status_code=204, dependencies=[Depends(require_staff)])
 def delete_image(
     image_path: str,
     service: CategoriesService = Depends(get_categories_service),
 ) -> None:
     service.delete_image(image_path)
+"""
 
-
-@router.patch("/{category_id}", dependencies=[Depends(require_staff)])
+@router.put("/{category_id}", dependencies=[Depends(require_staff)])
 def update_category(category_id: UUID, form: CategoryUpdate, service: CategoriesService = Depends(get_categories_service)):
     return service.update_category(category_id, form)
 

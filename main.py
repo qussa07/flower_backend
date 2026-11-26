@@ -19,6 +19,7 @@ from app.errors import validation_error_handler
 from database import create_tables
 from lib.file_system import lifespan
 from fastapi.middleware.cors import CORSMiddleware
+from app.uploads.router import router as uploads_router
 
 
 
@@ -58,3 +59,4 @@ app.include_router(product_router)
 app.include_router(orders_router)
 app.include_router(categories_router)
 app.include_router(staff_router)
+app.include_router(uploads_router)

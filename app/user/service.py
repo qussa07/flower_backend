@@ -1,9 +1,9 @@
 from uuid import UUID
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import or_
 from database import getdb
-from app.user.schemas import UserSort, UserRole
+from app.user.schemas import UserSort, UserRole, UserUpdate
 from app.user.models import User
 import pagination
 
@@ -44,3 +44,10 @@ class UserService:
         return pagination.paginate(
             query
             .order_by(ordering[sort], User.id.asc()), page, perPage)
+
+
+    def update_user(self, form: UserUpdate, user_id: UUID):
+        user = self.db.get(User, user_id)
+        if user is None:
+            raise HTTPException(404, "Пользователь не найден")
+        

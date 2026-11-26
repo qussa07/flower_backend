@@ -15,7 +15,7 @@ router = APIRouter(prefix="/profile", tags=['Profile'])
 def get_profile(user: User = Depends(utils.get_current_user)):
     return jsonable_encoder(user, exclude={"password"})
 
-@router.patch("")
+"""@router.put("")
 def update_profile(
     form: UserUpdate,
     user: User = Depends(utils.get_current_user),
@@ -41,4 +41,4 @@ def update_profile(
             raise HTTPException(status_code=409, detail="Этот email уже используется") from exc
         raise
     db.refresh(user)
-    return jsonable_encoder(user, exclude={"password"})
+    return jsonable_encoder(user, exclude={"password"})"""

@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Cookie, Response
 from sqlalchemy.orm import Session
 from database import getdb
+from uuid import UUID
 from .schemas import RegUsersModels, LoginUserModels, VerifyEmailRequest
 from .service import AuthService
 
@@ -28,6 +29,9 @@ def login(response: Response, form: LoginUserModels, service: AuthService = Depe
     return service.login(form, response)
 
 
+@router.post("/resend")
+def resend(registration_id: UUID,service: AuthService = Depends(get_user_service),):
+    return service.resend(registration_id)
 
 
 @router.post("/refresh")

@@ -156,7 +156,7 @@ class ProductService():
             query = query.order_by(Product.created_at.desc(), Product.id)
         return pagination.paginate(query, page, perPage)
 
-    def upload_file(self, photos: list[UploadFile],  redis: Session):
+    def upload_file(self, photos: list[UploadFile]):
         if len(photos) > MAX_FILES:
             raise HTTPException(400, f"Можно загрузить не больше {MAX_FILES} файлов")
 
