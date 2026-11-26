@@ -19,9 +19,10 @@ def register(data: RegUsersModels, service: AuthService = Depends(get_user_servi
 @router.post("/verify")
 def verify_email(
     data: VerifyEmailRequest,
+    response: Response,
     service: AuthService = Depends(get_user_service),
 ):
-    return service.verify_email(data)
+    return service.verify_email(data, response)
 
 
 @router.post("/login")
@@ -30,7 +31,7 @@ def login(response: Response, form: LoginUserModels, service: AuthService = Depe
 
 
 @router.post("/resend")
-def resend(registration_id: UUID,service: AuthService = Depends(get_user_service),):
+def resend(registration_id: UUID, service: AuthService = Depends(get_user_service),):
     return service.resend(registration_id)
 
 

@@ -109,7 +109,7 @@ class AuthService:
         return {"registration_id": str(registration_id)}
 
 
-    def resend(self, registration_id: UUID) -> dict[str, str]:
+    def resend(self, registration_id: UUID):
         email = get_registration_email(registration_id)
         if email is None:
             raise HTTPException(400, "Регистрация не найдена или истекла")
@@ -133,7 +133,7 @@ class AuthService:
 
         return {"registration_id": str(registration_id)}
 
-    def verify_email(self, form: VerifyEmailRequest):
+    def verify_email(self, form: VerifyEmailRequest, response: Response):
         email = check_code(form.registration_id, form.code)
         if email is None:
             raise HTTPException(
@@ -156,7 +156,8 @@ class AuthService:
 
         self.db.commit()
         delete_code(form.registration_id)
-        return {"status": "verified"}
+        self._set_cookie(response, utils.create_refresh_token(user_id))
+        return {"access": utils.create_access_token(user_id)}
 
 
     def login(self, form: LoginUserModels, response: Response):
