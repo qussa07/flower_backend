@@ -8,7 +8,7 @@ from hashlib import sha256
 from sqlalchemy import func, update, text
 
 from .mail import send_verification_code
-from .otp import check_code, delete_code, generate_code, is_on_cooldown, issue_code
+from .otp import check_code, delete_code, generate_code, is_on_cooldown, issue_code, get_registration_email
 from .schemas import LoginUserModels, RegUsersModels, VerifyEmailRequest
 
 from sqlalchemy import func
@@ -107,6 +107,30 @@ class AuthService:
 
         return {"registration_id": str(registration_id)}
 
+
+    def resend(self, registration_id: UUID) -> dict[str, str]:
+        email = get_registration_email(registration_id)
+        if email is None:
+            raise HTTPException(400, "Регистрация не найдена или истекла")
+
+        user = self.db.query(User).filter(User.email == email).one_or_none()
+        if user is None or user.email_verified_at is not None:
+            raise HTTPException(400, "Регистрация больше не ожидает подтверждения")
+
+        issued = issue_code(email, generate_code())
+        if issued is None:
+            raise HTTPException(429, "Подожди перед повторной отправкой")
+
+        new_registration_id, code = issued
+
+        try:
+            send_verification_code(email, code)
+        except OSError as exc:
+            delete_code(new_registration_id)
+            raise HTTPException(503, "Не удалось отправить письмо") from exc
+
+        delete_code(registration_id)
+        return {"registration_id": str(new_registration_id)}
 
     def verify_email(self, form: VerifyEmailRequest):
         email = check_code(form.registration_id, form.code)

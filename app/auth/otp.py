@@ -24,6 +24,8 @@ def is_on_cooldown(email: str) -> bool:
     return bool(get_redis().exists(f"otp:cooldown:{email.lower()}"))
 
 
+def get_registration_email(registration_id: UUID) -> str | None:
+    return get_redis().hget(_session_key(registration_id), "email")
 
 def issue_code(email: str, code: str) -> tuple[UUID, str] | None:
     email = email.lower()
