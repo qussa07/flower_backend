@@ -207,7 +207,7 @@ def import_catalog(categories, products, compounds, api_url, token, state_path):
                     image_paths=upload_ids,
                     compounds=compounds[product_id],
                 )
-                response = api.post("products/create", json=payload)
+                response = api.post("products/", json=payload)
                 response.raise_for_status()
                 state.execute("INSERT INTO imported VALUES (?, ?, ?)", (*key, response.json()["id"]))
             inserted += 1
