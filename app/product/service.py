@@ -135,7 +135,7 @@ class ProductService():
 
     def get_products(self, page: int, perPage: int, search=None, 
                      min_price=None, max_price=None, category_ids: list[UUID] | None = None, sort=None, 
-                     is_not_show: bool = False, is_ready: bool = True, public_only: bool = False):
+                     is_not_show: bool = False, is_ready: bool = False, public_only: bool = False):
         tokens = (search or "").split()[:MAX_TOKENS]
         if tokens:
             result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_ids=category_ids, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
@@ -240,7 +240,7 @@ class ProductService():
             )
         return or_(*conds)
 
-    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_not_show: bool = False, is_ready: bool = True, public_only: bool = False):
+    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_not_show: bool = False, is_ready: bool = False, public_only: bool = False):
         query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
         query = self._public_filter(query, public_only)
         

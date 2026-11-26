@@ -19,7 +19,7 @@ def get_user_service(db: Session = Depends(getdb)):
     return ProductService(db)
 
 
-@router.post("/", dependencies=[Depends(utils.require_staff)])
+@router.post("", dependencies=[Depends(utils.require_staff)])
 def create_product(form: ProductModels, service: ProductService = Depends(get_user_service)):   
     return service.create_product(form)
 
@@ -38,7 +38,7 @@ def get_products(
     sort: ProductSort | None = None,
     category_ids: str | None = Query(default=None),
     service: ProductService = Depends(get_user_service),
-    is_ready: bool = True
+    is_ready: bool = False
 ):
     try:
         ids = [UUID(x.strip()) for x in category_ids.split(",")] if category_ids else None
