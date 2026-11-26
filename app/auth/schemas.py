@@ -17,6 +17,8 @@ class VerifyEmailRequest(BaseModel):
     registration_id: str
     code: str = Field(pattern=r"^[0-9]{6}$", min_length=6, max_length=6)
 
+class ResendEmailRequest(BaseModel):
+    registration_id: str
 
 class LoginUserModels(BaseModel):
     email: EmailAddress

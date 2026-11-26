@@ -27,28 +27,8 @@ class ProductModels(BaseModel):
     description: str = Field(max_length=255)
 
 
-    @model_validator(mode="after")
-    def validate_active_stock(self):
-        if self.is_show and self.count == 0:
-            raise PydanticCustomError(
-                "request_value_invalid",
-                "Карточка не может быть активной при нулевом остатке",
-            )
-        return self
-
-
 class ProductUpdate(ProductModels):
     image_paths: list[str] | None =  Field(default=None, max_length=5)
-
-
-    @model_validator(mode="after")
-    def validate_active_stock(self):
-        if self.is_show and self.count == 0:
-            raise PydanticCustomError(
-                "request_value_invalid",
-                "Карточка не может быть активной при нулевом остатке",
-            )
-        return self
     
 
 

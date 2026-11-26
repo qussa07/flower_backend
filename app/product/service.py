@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, selectinload
+from sqlalchemy.orm import Session, selectinload, undefer
 from sqlalchemy.exc import IntegrityError
 from app.orders.models import OrderItems
 from ..user.models import User
@@ -46,6 +46,9 @@ class ProductService():
             category = self.db.get(Categories, form.category_id)
             if category is None:
                 raise HTTPException(404, "Категория не найдена")
+
+        if form.count < 0 and form.is_show:
+            raise HTTPException(422, "Количество товаров не может быть отрицательным при активной карточке")
 
         product = Product(
             category_id=form.category_id,
@@ -99,7 +102,7 @@ class ProductService():
     def get_product(self, id: UUID, public_only: bool = False):
         query = (
             self.db.query(Product)
-            .options(selectinload(Product.compounds))
+            .options(selectinload(Product.compounds), undefer(Product.category_title))
             .filter(Product.id == id)
         )
 
@@ -141,7 +144,7 @@ class ProductService():
             result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_ids=category_ids, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
             return result
         query = self._price_filter( 
-        self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
+        self.db.query(Product).options(selectinload(Product.compounds), undefer(Product.category_title)), min_price, max_price)
         query = self._public_filter(query, public_only)
         if is_ready:
             query = query.filter(Product.is_ready.is_(is_ready))
@@ -241,7 +244,7 @@ class ProductService():
         return or_(*conds)
 
     def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_not_show: bool = False, is_ready: bool = False, public_only: bool = False):
-        query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
+        query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds), undefer(Product.category_title)), min_price, max_price)
         query = self._public_filter(query, public_only)
         
 
@@ -324,6 +327,9 @@ class ProductService():
         old_images = list(product.image_paths or [])
         images = old_images.copy()
         new_photo_paths = []
+
+        if form.count < 0 and form.is_show:
+            raise HTTPException(422, "Количество товаров не может быть отрицательным при активной карточке")
 
         try:
             if requested_images is not None:

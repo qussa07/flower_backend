@@ -14,7 +14,7 @@ from .schemas import LoginUserModels, RegUsersModels, VerifyEmailRequest
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from .schemas import RegUsersModels, LoginUserModels
+from .schemas import RegUsersModels, LoginUserModels, VerifyEmailRequest, ResendEmailRequest
 from ..user.models import User
 from fastapi import HTTPException ,Response, Cookie
 import utils
@@ -109,8 +109,8 @@ class AuthService:
         return {"registration_id": str(registration_id)}
 
 
-    def resend(self, registration_id: UUID):
-        email = get_registration_email(registration_id)
+    def resend(self, form: ResendEmailRequest):
+        email = get_registration_email(form.registration_id)
         if email is None:
             raise HTTPException(400, "Регистрация не найдена или истекла")
 
@@ -128,10 +128,10 @@ class AuthService:
         except OSError as exc:
             raise HTTPException(503, "Не удалось отправить письмо") from exc
 
-        if not replace_code(registration_id, code):
+        if not replace_code(form.registration_id, code):
             raise HTTPException(400, "Регистрация не найдена или истекла")
 
-        return {"registration_id": str(registration_id)}
+        return {"registration_id": str(form.registration_id)}
 
     def verify_email(self, form: VerifyEmailRequest, response: Response):
         email = check_code(form.registration_id, form.code)

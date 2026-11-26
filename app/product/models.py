@@ -7,6 +7,11 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import deferred, relationship
 
+from sqlalchemy import select
+from sqlalchemy.orm import column_property
+
+from app.categories.models import Categories
+
 from database import Base
 
 
@@ -15,6 +20,12 @@ class Product(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id"), nullable=True, index=True)
+    category_title = column_property(
+        select(Categories.title)
+        .where(Categories.id == category_id)
+        .correlate_except(Categories)
+        .scalar_subquery(),
+        deferred=True,)
     title = Column(String, index=True, nullable=False)
     price = Column(Numeric(12, 2), nullable=False)
     is_show = Column(Boolean, nullable=False)
