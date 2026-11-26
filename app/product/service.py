@@ -54,7 +54,7 @@ class ProductService():
             description=form.description,
             count=form.count,
             is_show=form.is_show,
-            is_show_case=form.is_show_case,
+            is_ready=form.is_ready,
             image_paths=[],
             compounds=[
                 CompoundProduct(
@@ -135,7 +135,7 @@ class ProductService():
 
     def get_products(self, page: int, perPage: int, search=None, 
                      min_price=None, max_price=None, category_ids: list[UUID] | None = None, sort=None, 
-                     is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+                     is_not_show: bool = False, is_ready: bool = True, public_only: bool = False):
         tokens = (search or "").split()[:MAX_TOKENS]
         if tokens:
             result = self._run(tokens=tokens, fuzzy=False, per_page=perPage, page=page, min_price=min_price, max_price=max_price, sort=sort, category_ids=category_ids, is_ready=is_ready, is_not_show=is_not_show, public_only=public_only)
@@ -144,9 +144,9 @@ class ProductService():
         self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
         query = self._public_filter(query, public_only)
         if is_ready:
-            query = query.filter(Product.is_show_case.is_(is_ready))
+            query = query.filter(Product.is_ready.is_(is_ready))
 
-        if is_not_show:
+        if is_not_show == True:
             query = query.filter(Product.is_show.is_(False))
         if category_ids is not None:
             query = query.filter(Product.category_id.in_(category_ids))
@@ -240,16 +240,16 @@ class ProductService():
             )
         return or_(*conds)
 
-    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_ready: bool = False, is_not_show: bool = False, public_only: bool = False):
+    def _run(self, tokens, fuzzy, per_page, page, min_price=None, max_price=None, category_ids=None, sort=None, is_not_show: bool = False, is_ready: bool = True, public_only: bool = False):
         query = self._price_filter(self.db.query(Product).options(selectinload(Product.compounds)), min_price, max_price)
         query = self._public_filter(query, public_only)
         
 
         if is_ready == True:
-            query = query.filter(Product.is_show_case.is_(is_ready))
+            query = query.filter(Product.is_ready.is_(is_ready))
 
         if is_not_show == True:
-            query = query.filter(Product.is_show.is_(False)) 
+            query = query.filter(Product.is_show.is_(False))
 
         if category_ids is not None:
             query = query.filter(Product.category_id.in_(category_ids))
@@ -360,7 +360,7 @@ class ProductService():
             product.description = form.description
             product.count = form.count
             product.is_show = form.is_show and form.count > 0
-            product.is_show_case = form.is_show_case
+            product.is_ready = form.is_ready
 
             product.compounds = [
                 CompoundProduct(title=item.title, quantity=item.quantity)

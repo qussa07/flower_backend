@@ -91,7 +91,7 @@ def load_catalog(directory, categories_file, product_files, product_limit, photo
                 "price": price,
                 "count": count,
                 "is_show": count > 0 and not item["isArchived"],
-                "is_show_case": False,
+                "is_ready": False,
                 "description": (item.get("description") or "")[:255],
                 "image_paths": images[:photos_per_product],
             }

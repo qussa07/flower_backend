@@ -19,7 +19,7 @@ class Product(Base):
     price = Column(Numeric(12, 2), nullable=False)
     is_show = Column(Boolean, nullable=False)
     count = Column(Integer, nullable=False, server_default=text("0"))
-    is_show_case = Column(Boolean, nullable=False, server_default=text("false"))
+    is_ready = Column(Boolean, nullable=False, server_default=text("false"))
     description = Column(String(255), nullable=True)
     image_paths = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)  # без скобок

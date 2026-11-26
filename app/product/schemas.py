@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 from decimal import Decimal
 from uuid import UUID
+from pydantic_core import PydanticCustomError
 from typing import Annotated, Literal
 
 PhotoId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}(\.(jpg|png|webp))?$")]
@@ -20,14 +21,35 @@ class ProductModels(BaseModel):
         allow_inf_nan=False,)
     count: int = Field(ge=0, le=2147483647)
     is_show: bool
-    is_show_case: bool
+    is_ready: bool
     compounds: list[CompositionItem]
     image_paths: list[str] = Field(default_factory=list, max_length=5)
     description: str = Field(max_length=255)
 
 
+    @model_validator(mode="after")
+    def validate_active_stock(self):
+        if self.is_show and self.count == 0:
+            raise PydanticCustomError(
+                "request_value_invalid",
+                "Карточка не может быть активной при нулевом остатке",
+            )
+        return self
+
+
 class ProductUpdate(ProductModels):
     image_paths: list[str] | None =  Field(default=None, max_length=5)
+
+
+    @model_validator(mode="after")
+    def validate_active_stock(self):
+        if self.is_show and self.count == 0:
+            raise PydanticCustomError(
+                "request_value_invalid",
+                "Карточка не может быть активной при нулевом остатке",
+            )
+        return self
+    
 
 
 class ProductSearchParams(BaseModel):
