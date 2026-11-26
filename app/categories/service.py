@@ -48,7 +48,8 @@ class CategoriesService:
             if image_path:
                 rollback_photos([image_path])
             raise
-        return {"ok": True}
+        self.db.refresh(category)
+        return {"id": category.id}
 
     def get_categories(self, page: int, perPage: int, search: str = "", sort: CategorySort = "new"):
         ordering = {
@@ -135,7 +136,7 @@ class CategoriesService:
         self.db.refresh(category)
         if old_image != category.image_path:
             self._delete_unused_image(old_image)
-        return {"ok": True}
+        return {"id": category.id}
 
     def delete_category(self, category_id: UUID):
         category = self.get_category(category_id)

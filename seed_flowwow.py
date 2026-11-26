@@ -108,7 +108,7 @@ def load_catalog(directory, categories_file, product_files, product_limit, photo
     return categories, products, compounds, skipped
 
 
-def upload_photos(api, downloads, endpoint, urls):
+def upload_photos(api, downloads, urls):
     upload_ids = []
     for start in range(0, len(urls), MAX_FILES):
         files = []
@@ -125,16 +125,12 @@ def upload_photos(api, downloads, endpoint, urls):
                     if len(content) > MAX_SIZE:
                         raise ValueError(f"Image exceeds the upload limit: {url}")
                 content_type = response.headers.get("content-type", "application/octet-stream")
-            files.append(("photo", (Path(parsed.path).name or "photo", bytes(content), content_type)))
+            files.append(("photos", (Path(parsed.path).name or "photo", bytes(content), content_type)))
 
-        response = api.post(endpoint, files=files)
+        response = api.post("uploads", files=files)
         response.raise_for_status()
         payload = response.json()
-        batch_ids = (
-            [payload.get("upload_id")]
-            if endpoint == "categories/uploads"
-            else payload.get("upload_ids")
-        )
+        batch_ids = response.json().get("upload_ids")
 
         if (
             not isinstance(batch_ids, list)
@@ -145,7 +141,7 @@ def upload_photos(api, downloads, endpoint, urls):
                 for value in batch_ids
             )
         ):
-            raise ValueError(f"Invalid upload response from {endpoint}")
+            raise ValueError("Invalid upload response from /uploads")
         upload_ids.extend(batch_ids)
     return upload_ids
 
@@ -197,13 +193,13 @@ def import_catalog(categories, products, compounds, api_url, token, state_path):
                 else:
                     if not source["image_path"]:
                         raise ValueError(f"No cover image for category {source['title']!r}")
-                    photo_id, = upload_photos(api, downloads, "categories/uploads", [source["image_path"]])
+                    photo_id, = upload_photos(api, downloads, [source["image_path"]])
                     response = api.post("categories/", json={"title": source["title"], "image_path": photo_id})
                     response.raise_for_status()
                     category_id = response.json()["id"]
                     category_ids[title] = [category_id]
 
-                upload_ids = upload_photos(api, downloads, "products/uploads", product["image_paths"])
+                upload_ids = upload_photos(api, downloads, product["image_paths"])
                 payload = {name: value for name, value in product.items() if name != "id"}
                 payload.update(
                     category_id=category_id,
