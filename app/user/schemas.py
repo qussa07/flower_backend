@@ -14,17 +14,13 @@ class UserRole(Enum):
     ADMIN = "admin"
 
 
-
 class UserUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     name: str | None = Field(default=None, min_length=2, max_length=30)
-    email: EmailStr | None = Field(default=None, max_length=254)
-
     password: Annotated[
         str, StringConstraints(strip_whitespace=False)
     ] | None = Field(default=None, min_length=8, max_length=25)
-
     current_password: Annotated[
         str, StringConstraints(strip_whitespace=False)
     ] | None = Field(default=None, min_length=8, max_length=25)
@@ -33,31 +29,23 @@ class UserUpdate(BaseModel):
     def validate_update(self):
         if not self.model_fields_set:
             raise PydanticCustomError(
-                "request_value_invalid",
-                "Укажите хотя бы одно поле для обновления профиля",
+                "request_value_invalid", "Укажите поля для обновления профиля"
             )
-
         if any(getattr(self, field) is None for field in self.model_fields_set):
-            raise PydanticCustomError(  
-                "request_value_invalid",
-                "Переданные поля профиля должны содержать значения",
+            raise PydanticCustomError(
+                "request_value_invalid", "Переданные поля должны содержать значения"
             )
-
         if (self.password is None) != (self.current_password is None):
             raise PydanticCustomError(
-                "request_value_invalid",
-                "Для смены пароля укажите текущий и новый пароль",
+                "request_value_invalid", "Укажите текущий и новый пароль"
             )
-
+        for value in (self.password, self.current_password):
+            if value is not None and len(value.encode("utf-8")) > 72:
+                raise PydanticCustomError(
+                    "request_value_invalid", "Пароль должен занимать не больше 72 байт"
+                )
         return self
 
-    @model_validator(mode="after")
-    def validate_update(self):
-        if not self.model_fields_set:
-            raise PydanticCustomError("request_value_invalid", "Укажите хотя бы одно поле для обновления профиля")
-        if any(getattr(self, field) is None for field in self.model_fields_set):
-            raise PydanticCustomError("request_value_invalid", "Переданные поля профиля должны содержать значения")
-        return self
 
 
 class UserResponse(BaseModel):

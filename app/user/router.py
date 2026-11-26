@@ -6,6 +6,8 @@ from .models import User
 import utils
 from sqlalchemy.exc import IntegrityError
 from .schemas import UserUpdate
+from .schemas import UserResponse, UserUpdate
+from .service import UserService, get_user_service
 
 
 
@@ -14,6 +16,14 @@ router = APIRouter(prefix="/profile", tags=['Profile'])
 @router.get("")
 def get_profile(user: User = Depends(utils.get_current_user)):
     return jsonable_encoder(user, exclude={"password"})
+
+@router.put("", response_model=UserResponse)
+def update_profile(
+    form: UserUpdate,
+    user: User = Depends(utils.get_current_user),
+    service: UserService = Depends(get_user_service),
+):
+    return service.update_user(form, user.id)
 
 """@router.put("")
 def update_profile(

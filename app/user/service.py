@@ -6,6 +6,7 @@ from database import getdb
 from app.user.schemas import UserSort, UserRole, UserUpdate
 from app.user.models import User
 import pagination
+import utils
 
 router = APIRouter(prefix="/staff", tags=["Staff"])
 
@@ -46,8 +47,26 @@ class UserService:
             .order_by(ordering[sort], User.id.asc()), page, perPage)
 
 
-    def update_user(self, form: UserUpdate, user_id: UUID):
-        user = self.db.get(User, user_id)
+    def update_user(self, form: UserUpdate, user_id: UUID) -> User:
+        changing_password = form.password is not None
+        user = self.db.get(
+            User,
+            user_id,
+            with_for_update=changing_password,
+            populate_existing=changing_password,
+        )
         if user is None:
             raise HTTPException(404, "Пользователь не найден")
+
+        if form.password is not None and form.current_password is not None:
+            if not utils.verify_password(form.current_password, user.password):
+                raise HTTPException(400, "Текущий пароль неверный")
+            user.password = utils.hashed_password(form.password)
+
+        if form.name is not None:
+            user.name = form.name
+
+        self.db.commit()
+        self.db.refresh(user)
+        return user
         
