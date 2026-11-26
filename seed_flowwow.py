@@ -129,8 +129,22 @@ def upload_photos(api, downloads, endpoint, urls):
 
         response = api.post(endpoint, files=files)
         response.raise_for_status()
-        batch_ids = response.json()["upload_ids"]
-        if len(batch_ids) != len(files) or any(not ID_RE.fullmatch(id_) for id_ in batch_ids):
+        payload = response.json()
+        batch_ids = (
+            [payload.get("upload_id")]
+            if endpoint == "categories/uploads"
+            else payload.get("upload_ids")
+        )
+
+        if (
+            not isinstance(batch_ids, list)
+            or len(batch_ids) != len(files)
+            or any(
+                not isinstance(value, str)
+                or not ID_RE.fullmatch(value.removeprefix("/files/tmp/"))
+                for value in batch_ids
+            )
+        ):
             raise ValueError(f"Invalid upload response from {endpoint}")
         upload_ids.extend(batch_ids)
     return upload_ids
