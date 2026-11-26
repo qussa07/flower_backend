@@ -19,7 +19,7 @@ def get_user_service(db: Session = Depends(getdb)):
     return ProductService(db)
 
 
-@router.post("/create", dependencies=[Depends(utils.require_staff)])
+@router.post("/", dependencies=[Depends(utils.require_staff)])
 def create_product(form: ProductModels, service: ProductService = Depends(get_user_service)):   
     return service.create_product(form)
 
