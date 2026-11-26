@@ -157,7 +157,7 @@ class AuthService:
         self.db.commit()
         delete_code(form.registration_id)
         self._set_cookie(response, utils.create_refresh_token(user_id))
-        return {"access": utils.create_access_token(user_id)}
+        return {"access_token": utils.create_access_token(user_id)}
 
 
     def login(self, form: LoginUserModels, response: Response):

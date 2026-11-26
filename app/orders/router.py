@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 from database import getdb, get_redis
 from app.user.models import User
+import pagination
 from .services import OrdersService
 from uuid import UUID
 from fastapi.concurrency import run_in_threadpool
@@ -26,9 +27,11 @@ def get_user_service(db: Session = Depends(getdb)):
 def create_orders(form: OrdersModels,user: User = Depends(utils.get_current_user), service: OrdersService = Depends(get_user_service)):
     return service.create_order(form, user)
 
-@router.get('/', response_model=list[OrderResponseAll])
-def get_orders(user: User = Depends(utils.get_current_user), service: OrdersService = Depends(get_user_service)):
-    return service.get_orders(user)
+@router.get('/', response_model=pagination.Page[OrderResponseAll])
+def get_orders(
+    page: int = Query(1, ge=1),
+    perPage: int = Query(20, ge=1, le=100), user: User = Depends(utils.get_current_user), service: OrdersService = Depends(get_user_service)):
+    return service.get_orders(user, page, perPage)
 
 @router.get('/{order_id}', response_model=OrderResponse)
 def get_order(order_id: UUID, user: User = Depends(utils.get_current_user), service: OrdersService = Depends(get_user_service)):

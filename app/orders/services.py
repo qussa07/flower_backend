@@ -1,5 +1,7 @@
 from sqlalchemy.orm import Session, selectinload
 from decimal import Decimal
+
+import pagination
 from ..user.models import User
 from fastapi import HTTPException, Request
 from pathlib import Path
@@ -29,14 +31,15 @@ class OrdersService():
      def __init__(self, db: Session):
                self.db = db
 
-     def get_orders(self, user: User):
-          return (
+     def get_orders(self, user: User, page: int = 1, perPage: int = 1000):
+          query =  (
                self.db.query(Orders)
                .options(selectinload(Orders.items))
                .filter(Orders.customer_id == user.id)
                .order_by(Orders.created_at.desc(), Orders.id.desc())
                .all()
           )
+          return pagination.paginate(query, page, perPage)
 
      def create_order(self, form: OrdersModels, user: User):
           result = None
