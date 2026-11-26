@@ -37,7 +37,6 @@ class OrdersService():
                .options(selectinload(Orders.items))
                .filter(Orders.customer_id == user.id)
                .order_by(Orders.created_at.desc(), Orders.id.desc())
-               .all()
           )
           return pagination.paginate(query, page, perPage)
 
