@@ -31,7 +31,7 @@ class Product(Base):
     is_show = Column(Boolean, nullable=False)
     count = Column(Integer, nullable=False, server_default=text("0"))
     is_ready = Column(Boolean, nullable=False, server_default=text("false"))
-    description = Column(String(255), nullable=True)
+    description = Column(String(3000), nullable=True)
     image_paths = Column(JSONB, nullable=False, default=list)
     created_at = Column(DateTime, default=datetime.utcnow)  # без скобок
     reserved_count = Column(Integer, nullable=False, server_default=text("0"))

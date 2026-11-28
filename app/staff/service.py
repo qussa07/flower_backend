@@ -10,14 +10,15 @@ from app.user.models import User
 from app.product.models import Product
 from app.product.service import ProductService
 from app.staff.models import CompletionStatusEnum
+from pagination import paginate
 
 
 class StaffOrdersService:
     def __init__(self, db: Session):
         self.db = db
 
-    def get_orders(self):
-        return (
+    def get_orders(self, page: int, per_page: int):
+        query = (
             self.db.query(Orders)
             .options(selectinload(Orders.items))
             .filter(
@@ -25,8 +26,8 @@ class StaffOrdersService:
                 Orders.completion_status != CompletionStatusEnum.COMPLETED,
             )
             .order_by(Orders.created_at.asc(), Orders.id.asc())
-            .all()
         )
+        return paginate(query, page, per_page)
 
     def complete_order(self, order_id: UUID):
         order = (

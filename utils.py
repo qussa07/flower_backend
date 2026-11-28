@@ -233,3 +233,7 @@ def validate_image(content: bytes, filename: str) -> str:
         ) from None
 
     return content_type
+
+
+def main():
+    print(hashed_password("123456789"))

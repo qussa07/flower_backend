@@ -14,7 +14,11 @@ def send_verification_code(email: str, code: str) -> None:
         "Код действует 10 минут."
     )
 
-    with smtplib.SMTP(os.environ["SMTP_HOST"], 587, timeout=15) as smtp:
-        smtp.starttls(context=ssl.create_default_context())
+    with smtplib.SMTP_SSL(
+        os.environ["SMTP_HOST"],
+        465,
+        timeout=30,
+        context=ssl.create_default_context(),
+    ) as smtp:
         smtp.login(os.environ["SMTP_USER"], os.environ["SMTP_PASSWORD"])
         smtp.send_message(message)

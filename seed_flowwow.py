@@ -89,7 +89,7 @@ def load_catalog(directory, categories_file, product_files, product_limit, photo
                 "category_id": category_id,
                 "title": item["name"].strip()[:50],
                 "price": price,
-                "count": count,
+                "count": 10,
                 "is_show": count > 0 and not item["isArchived"],
                 "is_ready": False,
                 "description": (item.get("description") or "")[:255],

@@ -8,12 +8,12 @@ PhotoId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{32}(\.(jpg|png|we
 ProductSort = Literal["new", "old", "cheap", "expensive", "asc", "desc", "price_asc", "price_desc"]
 
 class CompositionItem(BaseModel):
-    title: str = Field(min_length=1, max_length=16)
+    title: str = Field(min_length=1, max_length=80)
     quantity: int = Field(gt=0, le=2147483647)
 
 class ProductModels(BaseModel):
     category_id: UUID | None = None
-    title: str = Field(min_length=5, max_length=50)
+    title: str = Field(min_length=5, max_length=150)
     price: Decimal = Field(
         gt=0,
         max_digits=12,
@@ -24,7 +24,7 @@ class ProductModels(BaseModel):
     is_ready: bool
     compounds: list[CompositionItem]
     image_paths: list[str] = Field(default_factory=list, max_length=5)
-    description: str = Field(max_length=255)
+    description: str = Field(max_length=3000)
 
 
 class ProductUpdate(ProductModels):

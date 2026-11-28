@@ -22,12 +22,14 @@ def get_staff_service(db: Session = Depends(getdb)):
     return StaffOrdersService(db)
 
 
-@router.get("/orders", response_model=list[StaffOrderResponse])
+@router.get("/orders", response_model=pagination.Page[StaffOrderResponse])
 def get_orders(
     user: User = Depends(require_staff),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=100),
     service: StaffOrdersService = Depends(get_staff_service),
 ):
-    return service.get_orders()
+    return service.get_orders(page, per_page)
 
 @router.get("/users",response_model=pagination.Page[UserResponse], dependencies=[Depends(require_staff)])
 def get_users(page: int= Query(1, ge=1),

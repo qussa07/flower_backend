@@ -78,10 +78,12 @@ class AuthService:
                 )
 
             code = generate_code()
+            print(code)
             try:
                 send_verification_code(email, code)
             except OSError as exc:
                 self.db.rollback()
+                print(f"Ошибка отправки письма: {exc}")
                 raise HTTPException(
                     status_code=503,
                     detail="Не удалось отправить письмо. Попробуй ещё раз",
